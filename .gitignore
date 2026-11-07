@@ -1,0 +1,6 @@
+/build/
+/target/
+/components/pocketgen-terminal/target/
+/components/pocketgen-editor/target/
+__pycache__/
+*.pyc

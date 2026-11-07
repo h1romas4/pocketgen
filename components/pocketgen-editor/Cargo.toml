@@ -1,0 +1,7 @@
+[package]
+name = "pocketgen-editor"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+unicode-width = { version = "0.2.3", default-features = false }

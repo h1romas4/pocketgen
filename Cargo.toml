@@ -1,0 +1,15 @@
+[package]
+name = "rustapp"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+zephyr = "0.1.0"
+log = "0.4.22"
+pocketgen-terminal = { path = "components/pocketgen-terminal" }
+pocketgen-editor = { path = "components/pocketgen-editor" }
+embedded-graphics = "0.8.2"
+u8g2-fonts = { version = "0.8", features = ["embedded_graphics_textstyle"] }

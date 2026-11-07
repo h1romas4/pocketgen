@@ -1,0 +1,23 @@
+mainmenu "pocketgen"
+
+source "Kconfig.zephyr"
+
+config POCKETGEN_SELF_TEST
+	bool "Run MicroPython integration tests at startup"
+	default n
+
+config POCKETGEN_SYNTAX_HIGHLIGHT
+	bool "Highlight Python source in the editor"
+	default y
+
+config POCKETGEN_HIGHLIGHT_BENCHMARK
+	bool "Benchmark editor viewport highlighting at startup"
+	default n
+
+config POCKETGEN_AUTOSTART_CUBE
+	bool "Load and run the 3D Cube demo at startup"
+	default n
+	help
+	  Start the 3D Cube demo automatically after initializing the display
+	  and UART. Ctrl+C interrupts the demo and returns to the editor.
+	  Startup integration tests retain their normal maze behavior.

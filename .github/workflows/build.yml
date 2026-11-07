@@ -1,0 +1,102 @@
+name: Build and test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test (${{ matrix.target }})
+    runs-on: ubuntu-26.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [native, esp32p4]
+    env:
+      ZEPHYR_BASE: /workspaces/zephyrproject/zephyr
+      ZEPHYR_SDK_INSTALL_DIR: /workspaces/zephyrproject/.sdk
+      # Zephyr's bindgen 0.70.1 generates incorrect layouts with Clang 22.
+      LIBCLANG_PATH: /usr/lib/llvm-21/lib
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ca-certificates ccache cmake device-tree-compiler dfu-util file \
+            g++-multilib gcc-multilib git gperf libclang-21-dev libmagic1 libsdl2-dev \
+            make ninja-build python3-dev python3-pip python3-tk python3-venv \
+            screen wget xz-utils
+
+      - name: Prepare Zephyr workspace
+        run: sudo install -d -o "$(id -u)" -g "$(id -g)" /workspaces/zephyrproject
+
+      - name: Cache pip downloads
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/pip-cache
+          key: ${{ runner.os }}-${{ runner.arch }}-pip-${{ hashFiles('.devcontainer/setup.sh') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-pip-
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cargo-${{ matrix.target }}-
+
+      - name: Cache Zephyr SDK
+        uses: actions/cache@v6
+        with:
+          path: /workspaces/zephyrproject/.sdk
+          key: ${{ runner.os }}-${{ runner.arch }}-zephyr-sdk-${{ hashFiles('.devcontainer/setup.sh') }}
+
+      - name: Set up Zephyr, SDK, and Rust targets
+        env:
+          PIP_CACHE_DIR: ${{ runner.temp }}/pip-cache
+        run: |
+          bash .devcontainer/setup.sh
+          echo "/workspaces/zephyrproject/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Test editor and terminal components
+        if: matrix.target == 'native'
+        run: |
+          cargo test --manifest-path components/pocketgen-editor/Cargo.toml --target-dir build/editor-tests
+          cargo test --manifest-path components/pocketgen-terminal/Cargo.toml --target-dir build/terminal-tests
+
+      - name: Run native integration tests
+        if: matrix.target == 'native'
+        run: bash tests/run-native.sh
+
+      - name: Test native startup
+        if: matrix.target == 'native'
+        run: |
+          west build -b native_sim/native/64 . -d build/native_display
+          python3 tests/maze-startup.py build/native_display/zephyr/zephyr.exe
+          west build -b native_sim/native/64 . -d build/native_cube_autostart -- \
+            -DEXTRA_CONF_FILE=tests/autostart-cube.conf \
+            -DDTC_OVERLAY_FILE=boards/native_sim_native_64.overlay
+          python3 tests/autostart-cube.py build/native_cube_autostart/zephyr/zephyr.exe
+
+      - name: Build ESP32-P4 firmware
+        if: matrix.target == 'esp32p4'
+        run: west build -b esp32p4_function_ev_board/esp32p4/hpcore . -d build/esp32p4_pocketgen
+
+      - name: Free build space for caches
+        run: |
+          rm -rf build/editor-tests build/terminal-tests \
+            build/native_selftest build/native_display build/native_cube_autostart \
+            build/esp32p4_pocketgen

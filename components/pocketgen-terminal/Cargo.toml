@@ -1,0 +1,17 @@
+[package]
+name = "pocketgen-terminal"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "no_std terminal renderer for embedded-graphics"
+
+[dependencies]
+embedded-graphics = "0.8.2"
+u8g2-fonts = { version = "0.8", features = ["embedded_graphics_textstyle"] }
+vt100 = { version = "0.18.1", default-features = false }
+lru = "0.18"
+log = { version = "0.4", optional = true }
+
+[features]
+std = ["vt100/std"]
+timing = ["std", "dep:log"]

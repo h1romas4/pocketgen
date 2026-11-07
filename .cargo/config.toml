@@ -1,0 +1,3 @@
+[env]
+BINDGEN_EXTRA_CLANG_ARGS_x86_64_unknown_none = "-D__UINT32_C(x)=x##U"
+BINDGEN_EXTRA_CLANG_ARGS_aarch64_unknown_none = "-D__UINT32_C(x)=x##U"
