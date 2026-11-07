@@ -93,7 +93,7 @@ and **Ctrl+]** to exit the simulator. The **F10** menu provides sample demos.
 
 ## ESP32-P4 setup
 
-![pocketgen running the maze demo on the ESP32-P4 Function EV Board](docs/images/esp32-p4-maze.png)
+![pocketgen running the maze demo on the ESP32-P4 Function EV Board](docs/images/native-sim-cube.jpg)
 
 The configuration targets the ESP32-P4 Function EV Board with a 1024x600
 EK79007 DSI LCD and PSRAM. It requires the FPU and the Rust
