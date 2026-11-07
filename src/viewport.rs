@@ -224,6 +224,8 @@ impl Viewport {
                         " Starfield         ",
                         " 3D Cube           ",
                         " Mexican Hat       ",
+                        " Sine Graph        ",
+                        " Hat (Graphics)    ",
                     ],
                 ),
                 1 => (

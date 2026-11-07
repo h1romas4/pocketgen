@@ -111,6 +111,8 @@ pub enum Key {
     Escape,
     /// Request execution by the application.
     Run,
+    /// Toggle the application's output between text and graphics.
+    ToggleOutput,
     /// Request loading the maze example.
     DemoMaze,
     /// Request loading the starfield example.
@@ -119,6 +121,10 @@ pub enum Key {
     DemoCube,
     /// Request loading the Mexican hat example.
     DemoMexicanHat,
+    /// Request loading the sine graphics example.
+    DemoSineGraph,
+    /// Request loading the graphics Mexican hat example.
+    DemoMexicanHatGraphics,
 }
 
 /// An invalid or incomplete terminal input sequence.
@@ -291,6 +297,7 @@ impl Decoder {
             0x03 => Some(Key::Copy),
             0x05 => Some(Key::Menu),
             0x06 => Some(Key::Find),
+            0x07 => Some(Key::ToggleOutput),
             0x0e => Some(Key::FindNext),
             0x10 => Some(Key::FindPrevious),
             0x12 => Some(Key::Run),
@@ -595,6 +602,7 @@ impl Editor {
                 self.cursor = text.len();
             }
             Key::Run
+            | Key::ToggleOutput
             | Key::Menu
             | Key::Find
             | Key::FindPrevious
@@ -603,7 +611,9 @@ impl Editor {
             | Key::DemoMaze
             | Key::DemoStarfield
             | Key::DemoCube
-            | Key::DemoMexicanHat => return,
+            | Key::DemoMexicanHat
+            | Key::DemoSineGraph => return,
+            Key::DemoMexicanHatGraphics => return,
             Key::ShiftLeft
             | Key::ShiftRight
             | Key::ShiftUp
@@ -662,11 +672,11 @@ impl Menu {
             Key::Left => self.open = Some(((group + 2) % 3, 0)),
             Key::Right => self.open = Some(((group + 1) % 3, 0)),
             Key::Up => {
-                let count = [4, 5, 1][group];
+                let count = [6, 5, 1][group];
                 self.open = Some((group, (item + count - 1) % count));
             }
             Key::Down => {
-                let count = [4, 5, 1][group];
+                let count = [6, 5, 1][group];
                 self.open = Some((group, (item + 1) % count));
             }
             Key::Enter => {
@@ -676,6 +686,8 @@ impl Menu {
                     (0, 1) => Key::DemoStarfield,
                     (0, 2) => Key::DemoCube,
                     (0, 3) => Key::DemoMexicanHat,
+                    (0, 4) => Key::DemoSineGraph,
+                    (0, 5) => Key::DemoMexicanHatGraphics,
                     (1, 0) => Key::Undo,
                     (1, 1) => Key::Cut,
                     (1, 2) => Key::Copy,
@@ -818,6 +830,7 @@ mod tests {
     fn decodes_document_navigation_shortcuts() {
         assert_eq!(Decoder::default().feed(0x02), Ok(None));
         let cases: &[(&[u8], Key)] = &[
+            (b"\x07", Key::ToggleOutput),
             (b"\x10", Key::FindPrevious),
             (b"\x0e", Key::FindNext),
             (b"\x1b[1;5H", Key::CtrlHome),
@@ -1074,6 +1087,17 @@ mod tests {
         assert_eq!(menu.handle(Key::Enter), Some(Key::DemoMaze));
         menu.handle(Key::Menu);
         menu.handle(Key::Left);
+        menu.handle(Key::Up);
+        assert_eq!(menu.handle(Key::Enter), Some(Key::DemoMexicanHatGraphics));
+        menu.handle(Key::Menu);
+        menu.handle(Key::Left);
+        menu.handle(Key::Up);
+        menu.handle(Key::Up);
+        assert_eq!(menu.handle(Key::Enter), Some(Key::DemoSineGraph));
+        menu.handle(Key::Menu);
+        menu.handle(Key::Left);
+        menu.handle(Key::Up);
+        menu.handle(Key::Up);
         menu.handle(Key::Up);
         assert_eq!(menu.handle(Key::Enter), Some(Key::DemoMexicanHat));
         menu.handle(Key::Menu);

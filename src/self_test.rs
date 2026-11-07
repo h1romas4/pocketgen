@@ -6,12 +6,240 @@
 use alloc::{format, vec};
 use embedded_graphics::geometry::Size;
 use pocketgen_editor::{Editor, Key, Menu, Search, SearchStatus};
-use pocketgen_terminal::{vt100, Rgb565Surface};
+use pocketgen_terminal::{vt100, Rgb565Surface, TerminalRenderer};
 
 use crate::apply_input;
-use crate::python::execute;
+use crate::output_pane::OutputPane;
+use crate::python::{execute, LiveDisplay};
 use crate::ui::{draw_running, draw_shortcuts, terminal, Bar};
 use crate::viewport::{pocketgen_syntax_highlight_enabled, Viewport};
+
+fn run_graphics_source(
+    source: &str,
+    renderer: &mut TerminalRenderer,
+    parser: &mut vt100::Parser,
+    pane: &mut OutputPane,
+    pixels: &mut [u16],
+    width: u16,
+    height: u16,
+    bar_height: u16,
+) -> i32 {
+    let mut live = LiveDisplay {
+        renderer,
+        pane,
+        pixels,
+        width,
+        height,
+        bar_height,
+        error: 0,
+        ignored_input: false,
+        self_test: false,
+    };
+    execute(&Editor::new(source), parser, Some(&mut live)).status
+}
+
+/// Checks graphics primitives, retention, text switching, and graphics demos.
+pub(crate) fn test_graphics(
+    renderer: &mut TerminalRenderer,
+    parser: &mut vt100::Parser,
+    pane: &mut OutputPane,
+    pixels: &mut [u16],
+    width: u16,
+    height: u16,
+    bar_height: u16,
+) -> bool {
+    if pane.toggle() {
+        return false;
+    }
+    let source = "from pocketgen import graphics_size, graphics_clear, graphics_pixel, graphics_line, graphics_show, refresh\n\
+        w, h = graphics_size()\n\
+        assert w >= 4 and h >= 4\n\
+        graphics_clear(0x1234)\n\
+        graphics_pixel(0, 0, 0xffff)\n\
+        graphics_line(1, 1, 3, 3, 0xf800)\n\
+        graphics_line(0, h - 1, w - 1, h - 1, 0x07e0)\n\
+        graphics_line(w - 1, 0, w - 1, h - 1, 0x001f)\n\
+        print('text-visible')\n\
+        graphics_show()\n\
+        refresh()\n";
+    if run_graphics_source(
+        source, renderer, parser, pane, pixels, width, height, bar_height,
+    ) != 0
+        || !parser.screen().contents().contains("text-visible")
+    {
+        return false;
+    }
+    let x = width / 2;
+    let index = usize::from(bar_height) * usize::from(width) + usize::from(x);
+    for _ in 0..2 {
+        pixels.fill(0x55aa);
+        pane.render(parser, renderer, pixels, width, x, bar_height);
+        if pixels[index] != 0xffff
+            || pixels[index + 1] != 0x1234
+            || pixels[index + usize::from(width) + 1] != 0xf800
+            || pixels[index + 3 * usize::from(width) + 3] != 0xf800
+            || pixels[index + usize::from(width - x) - 1] != 0x001f
+            || pixels[usize::from(height - bar_height - 1) * usize::from(width) + usize::from(x)]
+                != 0x07e0
+            || pixels
+                [usize::from(height - bar_height - 1) * usize::from(width) + usize::from(width - 1)]
+                != 0x001f
+            || pixels[index - 1] != 0x55aa
+        {
+            return false;
+        }
+    }
+    if !pane.toggle() || pane.graphics_command(3, 0, 0, 0, 0, 0x07e0) != 0 {
+        return false;
+    }
+    pane.render(parser, renderer, pixels, width, x, bar_height);
+    if pixels[index] == 0x07e0 || !parser.screen().contents().contains("text-visible") {
+        return false;
+    }
+    if !pane.toggle() {
+        return false;
+    }
+    pane.show_text();
+    pane.render(parser, renderer, pixels, width, x, bar_height);
+    if pixels[index] != 0x07e0 {
+        return false;
+    }
+    pane.show_error();
+    pane.render(parser, renderer, pixels, width, x, bar_height);
+    if pixels[index] == 0x07e0 || !pane.toggle() {
+        return false;
+    }
+    let invalid = concat!(
+        "from pocketgen import graphics_size, graphics_clear, graphics_pixel, graphics_line\n",
+        "w, h = graphics_size()\n",
+        "graphics_clear()\n",
+        "for f, args in ((graphics_pixel, (-1, 0, 1)), (graphics_pixel, (w, 0, 1)),\n",
+        "                (graphics_pixel, (0, h, 1)), (graphics_pixel, (0, 0, -1)),\n",
+        "                (graphics_pixel, (0, 0, 65536)),\n",
+        "                (graphics_line, (0, 0, w, 0, 1))):\n",
+        " try:\n",
+        "  f(*args)\n",
+        "  raise RuntimeError('invalid graphics accepted')\n",
+        " except ValueError:\n",
+        "  pass\n",
+        "raise ValueError('visible-error')\n",
+    );
+    if run_graphics_source(
+        invalid, renderer, parser, pane, pixels, width, height, bar_height,
+    ) != 1
+        || !parser.screen().contents().contains("visible-error")
+    {
+        return false;
+    }
+    pane.render(parser, renderer, pixels, width, x, bar_height);
+    if pixels[index] == 0x1234 {
+        return false;
+    }
+    let before_clear = concat!(
+        "from pocketgen import graphics_pixel, graphics_line, graphics_show\n",
+        "for f, args in ((graphics_pixel, (0, 0, 1)),\n",
+        "                (graphics_line, (0, 0, 1, 1, 1)), (graphics_show, ())):\n",
+        " try:\n",
+        "  f(*args)\n",
+        "  raise RuntimeError('uninitialized graphics accepted')\n",
+        " except OSError:\n",
+        "  pass\n",
+    );
+    if run_graphics_source(
+        before_clear,
+        renderer,
+        parser,
+        pane,
+        pixels,
+        width,
+        height,
+        bar_height,
+    ) != 0
+    {
+        return false;
+    }
+    if run_graphics_source(
+        include_str!("../examples/sine_graph.py"),
+        renderer,
+        parser,
+        pane,
+        pixels,
+        width,
+        height,
+        bar_height,
+    ) != 0
+    {
+        log::error!("Sine graph demo failed: {}", parser.screen().contents());
+        return false;
+    }
+    pixels.fill(0);
+    pane.render(parser, renderer, pixels, width, x, bar_height);
+    let curve_pixels = (usize::from(bar_height)..usize::from(height - bar_height))
+        .flat_map(|row| {
+            &pixels[row * usize::from(width) + usize::from(x)..(row + 1) * usize::from(width)]
+        })
+        .filter(|&&pixel| pixel == 0x07ff)
+        .count();
+    let graph_width = usize::from(width - x);
+    let graph_height = usize::from(height - 2 * bar_height);
+    let middle = graph_height / 2;
+    let amplitude = (graph_height - 2) * 2 / 5;
+    let peaks = [
+        (1, middle - amplitude),
+        (3, middle + amplitude),
+        (5, middle - amplitude),
+        (7, middle + amplitude),
+    ];
+    if curve_pixels < graph_width / 2
+        || !peaks.into_iter().all(|(eighth, expected_y)| {
+            let column = (graph_width - 1) * eighth / 8;
+            let start = expected_y.saturating_sub(4);
+            let end = (expected_y + 4).min(graph_height - 1);
+            (start..=end).any(|row| {
+                pixels
+                    [(usize::from(bar_height) + row) * usize::from(width) + usize::from(x) + column]
+                    == 0x07ff
+            })
+        })
+    {
+        return false;
+    }
+
+    let Some(definitions) =
+        include_str!("../examples/mexican_hat_graphics.py").strip_suffix("run_demo()\n")
+    else {
+        log::error!("Graphics Mexican hat demo entry point is missing");
+        return false;
+    };
+    let source = format!("{}run_demo(12)\n", definitions);
+    if run_graphics_source(
+        &source, renderer, parser, pane, pixels, width, height, bar_height,
+    ) != 0
+    {
+        log::error!(
+            "Graphics Mexican hat demo failed: {}",
+            parser.screen().contents()
+        );
+        return false;
+    }
+    pixels.fill(0);
+    pane.render(parser, renderer, pixels, width, x, bar_height);
+    let graphic_pixels =
+        (usize::from(bar_height)..usize::from(height - bar_height)).flat_map(|row| {
+            &pixels[row * usize::from(width) + usize::from(x)..(row + 1) * usize::from(width)]
+        });
+    let mut count = 0;
+    let mut blue = false;
+    let mut red = false;
+    for &pixel in graphic_pixels {
+        if pixel != 0 {
+            count += 1;
+        }
+        blue |= pixel == 0x001f;
+        red |= pixel == 0xf800;
+    }
+    count > graph_width * 2 && blue && red
+}
 
 /// Checks search input, selection, scrolling, and prompt rendering.
 pub(crate) fn test_search(size: Size) -> bool {
@@ -397,6 +625,46 @@ pub(crate) fn test_demo_loading(size: Size, footer_size: Size) -> bool {
     {
         return false;
     }
+    for key in [Key::Menu, Key::Left, Key::Up, Key::Up, Key::Up, Key::Enter] {
+        if !apply_input(
+            key,
+            &mut menu,
+            &mut editor,
+            &mut right,
+            &mut footer,
+            None,
+            false,
+            1,
+        ) {
+            return false;
+        }
+    }
+    if editor.text() != include_str!("../examples/mexican_hat.py")
+        || editor.cursor() != 0
+        || !right.screen().contents().trim().is_empty()
+    {
+        return false;
+    }
+    for key in [Key::Menu, Key::Left, Key::Up, Key::Up, Key::Enter] {
+        if !apply_input(
+            key,
+            &mut menu,
+            &mut editor,
+            &mut right,
+            &mut footer,
+            None,
+            false,
+            1,
+        ) {
+            return false;
+        }
+    }
+    if editor.text() != include_str!("../examples/sine_graph.py")
+        || editor.cursor() != 0
+        || !right.screen().contents().trim().is_empty()
+    {
+        return false;
+    }
     for key in [Key::Menu, Key::Left, Key::Up, Key::Enter] {
         if !apply_input(
             key,
@@ -411,7 +679,7 @@ pub(crate) fn test_demo_loading(size: Size, footer_size: Size) -> bool {
             return false;
         }
     }
-    editor.text() == include_str!("../examples/mexican_hat.py")
+    editor.text() == include_str!("../examples/mexican_hat_graphics.py")
         && editor.cursor() == 0
         && right.screen().contents().trim().is_empty()
 }
@@ -439,6 +707,12 @@ pub(crate) fn test_terminal_controls(size: Size) -> bool {
     let Some((_, mut right)) = terminal(size) else {
         return false;
     };
+    let unavailable = Editor::new("from pocketgen import graphics_size\ngraphics_size()\n");
+    if execute(&unavailable, &mut right, None).status != 1
+        || !right.screen().contents().contains("OSError")
+    {
+        return false;
+    }
     let editor = Editor::new(
         "from pocketgen import cls, locate, color\n\
          print('discard')\n\
@@ -510,7 +784,9 @@ pub(crate) fn test_heap_status(right_size: Size, footer_size: Size) -> bool {
         return false;
     };
     draw_running(&mut footer);
-    if !footer.parser.screen().contents().contains("Ctrl+C Stop") {
+    if !footer.parser.screen().contents().contains("Ctrl+C Stop")
+        || !footer.parser.screen().contents().contains("Ctrl+G View")
+    {
         return false;
     }
     draw_shortcuts(&mut footer, None);

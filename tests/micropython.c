@@ -32,12 +32,12 @@ static int check(const char *source, int expected_status, const char *expected_o
     struct captured_output output = {0};
     size_t free_bytes = 0;
     int status = pocketgen_micropython_run(
-        (const uint8_t *)source, strlen(source), 80, 24, capture, NULL, &output, &free_bytes);
+        (const uint8_t *)source, strlen(source), 80, 24, capture, NULL, NULL, &output, &free_bytes);
     if (status != expected_status || output.overflow ||
         strstr(output.bytes, expected_output) == NULL ||
         free_bytes == 0 || free_bytes > 128 * 1024) {
-        LOG_ERR("Python test failed: status=%d, overflow=%d, free=%zu, output=%s",
-            status, output.overflow, free_bytes, output.bytes);
+        LOG_ERR("Python test failed: source=%s, status=%d, overflow=%d, free=%zu, output=%s",
+            source, status, output.overflow, free_bytes, output.bytes);
         return -EINVAL;
     }
     return 0;
@@ -58,7 +58,7 @@ static int check_terminal_controls(void) {
     struct captured_output output = {0};
     size_t free_bytes = 0;
     int status = pocketgen_micropython_run((const uint8_t *)source, strlen(source),
-        80, 24, capture, NULL, &output, &free_bytes);
+        80, 24, capture, NULL, NULL, &output, &free_bytes);
     if (status != 0 || output.overflow || strcmp(output.bytes, expected) != 0 || free_bytes == 0) {
         LOG_ERR("Terminal controls failed: status=%d, output=%s", status, output.bytes);
         return -EINVAL;
@@ -71,7 +71,7 @@ static int check_terminal_size(uint16_t cols, uint16_t rows, const char *expecte
     struct captured_output output = {0};
     size_t free_bytes = 0;
     int status = pocketgen_micropython_run((const uint8_t *)source, strlen(source),
-        cols, rows, capture, NULL, &output, &free_bytes);
+        cols, rows, capture, NULL, NULL, &output, &free_bytes);
     if (status != 0 || output.overflow || strcmp(output.bytes, expected) != 0) {
         LOG_ERR("Terminal size test failed for %u x %u: %s", cols, rows, output.bytes);
         return -EINVAL;
@@ -120,7 +120,7 @@ static int check_live_execution(void) {
     size_t free_bytes = 0;
     int64_t start = k_uptime_get();
     int status = pocketgen_micropython_run((const uint8_t *)source, strlen(source),
-        80, 24, capture, observe_frame, &observed, &free_bytes);
+        80, 24, capture, observe_frame, NULL, &observed, &free_bytes);
     if (status != 0 || !observed.first_frame || !observed.second_frame ||
         strstr(observed.output.bytes, "done") == NULL || k_uptime_get() - start < 40) {
         LOG_ERR("Live frame or sleep test failed");
@@ -129,7 +129,7 @@ static int check_live_execution(void) {
     struct captured_output output = {0};
     const char *loop = "while True:\n pass\n";
     status = pocketgen_micropython_run((const uint8_t *)loop, strlen(loop),
-        80, 24, capture, interrupt_run, &output, &free_bytes);
+        80, 24, capture, interrupt_run, NULL, &output, &free_bytes);
     if (status != 1 || strstr(output.bytes, "KeyboardInterrupt") == NULL) {
         LOG_ERR("Tight-loop interrupt test failed");
         return -EINVAL;
@@ -137,7 +137,7 @@ static int check_live_execution(void) {
     memset(&output, 0, sizeof(output));
     const char *sleep = "from pocketgen import sleep_ms\nsleep_ms(1000)\nprint('should-not-run')\n";
     status = pocketgen_micropython_run((const uint8_t *)sleep, strlen(sleep),
-        80, 24, capture, interrupt_run, &output, &free_bytes);
+        80, 24, capture, interrupt_run, NULL, &output, &free_bytes);
     if (status != 1 || strstr(output.bytes, "KeyboardInterrupt") == NULL ||
         strstr(output.bytes, "should-not-run") != NULL) {
         LOG_ERR("Sleep interrupt test failed");
@@ -146,7 +146,7 @@ static int check_live_execution(void) {
     memset(&output, 0, sizeof(output));
     const char *refresh = "from pocketgen import refresh\nrefresh()\n";
     status = pocketgen_micropython_run((const uint8_t *)refresh, strlen(refresh),
-        80, 24, capture, fail_progress, &output, &free_bytes);
+        80, 24, capture, fail_progress, NULL, &output, &free_bytes);
     if (status != 1 || strstr(output.bytes, "OSError") == NULL) {
         LOG_ERR("Display failure propagation test failed");
         return -EINVAL;
@@ -158,11 +158,11 @@ int pocketgen_test_micropython(void) {
     struct captured_output output = {0};
     size_t free_bytes = 1;
     if (strcmp(pocketgen_micropython_version(), MICROPY_VERSION_STRING) != 0 ||
-        pocketgen_micropython_run(NULL, 0, 80, 24, capture, NULL, &output, &free_bytes) != -EINVAL ||
-        pocketgen_micropython_run((const uint8_t *)"", 0, 0, 24, capture, NULL, &output, &free_bytes) != -EINVAL ||
-        pocketgen_micropython_run((const uint8_t *)"", 0, 80, 0, capture, NULL, &output, &free_bytes) != -EINVAL ||
-        pocketgen_micropython_run((const uint8_t *)"", 0, 80, 24, NULL, NULL, NULL, &free_bytes) != -EINVAL ||
-        pocketgen_micropython_run((const uint8_t *)"", 0, 80, 24, capture, NULL, &output, NULL) != -EINVAL ||
+        pocketgen_micropython_run(NULL, 0, 80, 24, capture, NULL, NULL, &output, &free_bytes) != -EINVAL ||
+        pocketgen_micropython_run((const uint8_t *)"", 0, 0, 24, capture, NULL, NULL, &output, &free_bytes) != -EINVAL ||
+        pocketgen_micropython_run((const uint8_t *)"", 0, 80, 0, capture, NULL, NULL, &output, &free_bytes) != -EINVAL ||
+        pocketgen_micropython_run((const uint8_t *)"", 0, 80, 24, NULL, NULL, NULL, NULL, &free_bytes) != -EINVAL ||
+        pocketgen_micropython_run((const uint8_t *)"", 0, 80, 24, capture, NULL, NULL, &output, NULL) != -EINVAL ||
         free_bytes != 1 ||
         check_live_execution() != 0 ||
         check_terminal_controls() != 0 ||
@@ -180,6 +180,25 @@ int pocketgen_test_micropython(void) {
         check("from pocketgen import sleep_ms\nsleep_ms(-1)\n", 1, "ValueError") != 0 ||
         check("from pocketgen import sleep_ms\nsleep_ms('x')\n", 1, "TypeError") != 0 ||
         check("print('hello', 2 + 3)\n", 0, "hello 5\n") != 0 ||
+        check("assert abs(1.5 + 2.25 - 3.75) < 1e-12\nprint('float-ok')\n", 0, "float-ok") != 0 ||
+        check("import math\nassert abs(math.sin(math.pi / 2) - 1.0) < 1e-12\n"
+              "print('sin-ok')\n", 0, "sin-ok") != 0 ||
+        check("import math\nassert abs(math.sqrt(2.0) ** 2 - 2.0) < 1e-12\n"
+              "print('sqrt-ok')\n", 0, "sqrt-ok") != 0 ||
+        check("import math\n"
+              "assert abs(math.cos(0.0) - 1.0) < 1e-12\n"
+              "assert abs(math.cos(math.pi) + 1.0) < 1e-12\n"
+              "assert abs(math.atan2(1.0, 1.0) - math.pi / 4) < 1e-12\n"
+              "assert abs(math.exp(1.0) - math.e) < 1e-12\n"
+              "assert abs(math.log(math.exp(2.0)) - 2.0) < 1e-12\n"
+              "assert math.pow(2.0, 3.0) == 8.0\n"
+              "assert math.floor(-1.5) == -2 and math.ceil(1.5) == 2\n"
+              "assert math.fmod(5.5, 2.0) == 1.5\n"
+              "assert math.frexp(8.0) == (0.5, 4)\n"
+              "assert math.ldexp(0.5, 4) == 8.0\n"
+              "assert math.modf(1.5) == (0.5, 1.0)\n"
+              "print('functions-ok')\n", 0, "functions-ok") != 0 ||
+        check("import math\nmath.sqrt(-1.0)\n", 1, "ValueError") != 0 ||
         check("raise ValueError('bad input')\n", 1, "ValueError: bad input") != 0 ||
         check("if True print(1)\n", 1, "SyntaxError") != 0 ||
         check("value = 42\nprint(value)\n", 0, "42\n") != 0 ||
@@ -194,9 +213,9 @@ int pocketgen_test_micropython(void) {
     size_t baseline_free = 0;
     size_t allocated_free = 0;
     int baseline_status = pocketgen_micropython_run((const uint8_t *)baseline, strlen(baseline),
-        80, 24, capture, NULL, &output, &baseline_free);
+        80, 24, capture, NULL, NULL, &output, &baseline_free);
     int allocated_status = pocketgen_micropython_run((const uint8_t *)allocated, strlen(allocated),
-        80, 24, capture, NULL, &output, &allocated_free);
+        80, 24, capture, NULL, NULL, &output, &allocated_free);
     if (baseline_status != 0 || allocated_status != 0 ||
         baseline_free <= allocated_free || baseline_free - allocated_free < 7000) {
         LOG_ERR("GC allocation test: status=%d/%d free=%zu/%zu output=%s",

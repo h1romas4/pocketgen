@@ -9,6 +9,8 @@ use log::warn;
 use pocketgen_terminal::{vt100, Rgb565Surface, TerminalRenderer};
 use u8g2_fonts::fonts::u8g2_font_unifont_t_gb2312;
 
+use crate::output_pane::OutputPane;
+
 extern "C" {
     pub(crate) fn pocketgen_display_present(pixels: *const u16, width: u16, height: u16) -> i32;
 }
@@ -83,13 +85,13 @@ impl Bar {
     }
 }
 
-/// Shows the interrupt shortcut while MicroPython is executing.
+/// Shows shortcuts available while MicroPython is executing.
 pub(crate) fn draw_running(bar: &mut Bar) {
     bar.parser.process(b"\x1b[2J\x1b[H\x1b[?25l");
     blue_bar(
         &mut bar.parser,
         bar.renderer.cols(),
-        " Running...  Ctrl+C Stop",
+        " Running...  Ctrl+C Stop  Ctrl+G View",
     );
 }
 
@@ -111,6 +113,7 @@ pub(crate) fn draw_shortcuts(bar: &mut Bar, free_bytes: Option<usize>) {
         (" ^E ", " Menu  "),
         (" ^R ", " Run  "),
         (" ^F ", " Find  "),
+        (" ^G ", " View  "),
         (" ^Z ", " Undo  "),
         (" ^X ", " Cut  "),
         (" ^C ", " Copy  "),
@@ -145,6 +148,7 @@ pub(crate) fn render_display(
     right: &vt100::Parser,
     left_renderer: &mut TerminalRenderer,
     right_renderer: &mut TerminalRenderer,
+    output_pane: &OutputPane,
     right_header: &mut Bar,
     footer: &mut Bar,
     pixels: &mut [u16],
@@ -167,19 +171,7 @@ pub(crate) fn render_display(
             .unwrap(),
         )
         .unwrap();
-    right_renderer
-        .render(
-            right.screen(),
-            &mut Rgb565Surface::new(
-                pixels,
-                width,
-                Size::new((width - right_x).into(), (height - 2 * bar_height).into()),
-                right_x,
-                bar_height,
-            )
-            .unwrap(),
-        )
-        .unwrap();
+    output_pane.render(right, right_renderer, pixels, width, right_x, bar_height);
     right_header.render(pixels, width);
     footer.render(pixels, width);
     let divider_color = RawU16::from(Rgb565::new(12, 24, 12)).into_inner();

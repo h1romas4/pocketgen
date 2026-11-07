@@ -105,6 +105,10 @@ try:
         raise RuntimeError("timed out waiting for UART editor execution")
 
     start = len(output)
+    os.write(serial_fd, b"\x07")
+    wait_for(b"Cannot switch output view: no graphics available", start)
+
+    start = len(output)
     select_all = b"\x01a" if via_screen else b"\x01"
     os.write(
         serial_fd,
@@ -153,7 +157,7 @@ try:
 
     for name, selection in ((b"starfield", b"\x1b[B"),
                             (b"cube", b"\x1b[B\x1b[B"),
-                            (b"mexican hat", b"\x1b[A"),
+                            (b"mexican hat", b"\x1b[A\x1b[A\x1b[A"),
                             (b"maze", b"")):
         start = len(output)
         os.write(serial_fd, b"\x05\x1b[D" + selection + b"\r")
@@ -173,6 +177,60 @@ try:
             os.write(serial_fd, b"\x03")
             wait_for(b"MicroPython execution interrupted", start)
     print(f"Demo menu loading, animation, and interruption passed ({mode})")
+
+    start = len(output)
+    os.write(serial_fd, b"\x05\x1b[D\x1b[A\x1b[A\r")
+    wait_for(b"Loaded sine graph demo", start)
+    os.write(serial_fd, b"\x12")
+    wait_for(b"MicroPython execution completed", start)
+    if b"MicroPython script raised an exception" in output[start:]:
+        raise RuntimeError("sine graph demo raised an exception")
+    os.write(serial_fd, b"\x07")
+    wait_for(b"Output view: text", start)
+    os.write(serial_fd, b"\x07")
+    wait_for(b"Output view: graphics", start)
+    print(f"Sine graph demo menu and execution passed ({mode})")
+
+    start = len(output)
+    os.write(serial_fd, b"\x05\x1b[D\x1b[A\r")
+    wait_for(b"Loaded mexican hat graphics demo", start)
+    os.write(serial_fd, b"\x12")
+    wait_for(b"MicroPython execution started", start)
+    frame_start = output.index(b"MicroPython execution started", start)
+    for _ in range(3):
+        wait_for(b"Live output frame presented", frame_start)
+        frame_start = output.index(b"Live output frame presented", frame_start) + len(
+            b"Live output frame presented"
+        )
+    wait_for(b"MicroPython execution completed", start, timeout=30)
+    os.write(serial_fd, b"\x07")
+    wait_for(b"Output view: text", start)
+    os.write(serial_fd, b"\x07")
+    wait_for(b"Output view: graphics", start)
+    print(f"Graphics Mexican hat demo menu, drawing, and view toggle passed ({mode})")
+
+    start = len(output)
+    replace_and_run(
+        b"from pocketgen import graphics_clear, graphics_pixel, graphics_show, sleep_ms\r"
+        b"graphics_clear()\r"
+        b"print('retained-text')\r"
+        b"graphics_show()\r"
+        b"while True:\r"
+        b" graphics_pixel(0, 0, 0xffff)\r"
+        b" print('running')\r"
+        b" graphics_show()\r"
+        b" sleep_ms(40)\r"
+    )
+    wait_for(b"Live output frame presented", start)
+    os.write(serial_fd, b"\x07")
+    wait_for(b"Output view: text", start)
+    os.write(serial_fd, b"\x07")
+    wait_for(b"Output view: graphics", start)
+    start = len(output)
+    os.write(serial_fd, b"\x03")
+    wait_for(b"Output view: text (Python exception)", start)
+    wait_for(b"MicroPython execution interrupted", start)
+    print(f"Output view shortcut during and after execution passed ({mode})")
 
     start = len(output)
     replace_and_run(

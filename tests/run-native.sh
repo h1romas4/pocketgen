@@ -8,6 +8,7 @@ python3 tests/maze_demo_test.py
 python3 tests/starfield_demo_test.py
 python3 tests/cube_demo_test.py
 python3 tests/mexican_hat_demo_test.py
+python3 tests/mexican_hat_graphics_demo_test.py
 cargo test --manifest-path components/pocketgen-editor/Cargo.toml \
     --target-dir build/editor-tests --test syntax
 
@@ -26,6 +27,7 @@ if [[ "$status" -ne 124 ]]; then
 fi
 for message in \
     'MicroPython integration tests passed' \
+    'Graphics integration test passed' \
     'Terminal bridge test passed' \
     'Editor viewport test passed' \
     'Search test passed' \

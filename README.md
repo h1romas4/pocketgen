@@ -98,6 +98,48 @@ selection of up to 256 UTF-8 bytes pre-fills the query; the first search moves
 to the next or previous match. **Backspace** edits the query and **Esc** closes
 search, leaving the match selected. The query is limited to 256 UTF-8 bytes.
 
+### Math and graphics
+
+MicroPython supports double-precision floating-point numbers and the `math`
+module, including `sin`, `cos`, `sqrt`, and `pi`. Select **Demo → Sine Graph**
+or **Demo → Hat (Graphics)** and press **Ctrl+R** to run a pixel graphics
+example. The latter draws a Mexican hat surface progressively; the original
+text-mode **Mexican Hat** demo remains available. The graphics version follows
+the classic cosine surface, projection, and height-based colors, connecting
+sampled points with lines projected at the output pane's pixel resolution.
+The hat demo defaults to no added delay; its `delay` parameter can be set in
+milliseconds to slow the progressive drawing. Loading a demo replaces the
+editor buffer; use **Ctrl+Z** to undo.
+
+The `pocketgen` module provides these right-pane graphics primitives:
+
+| Function | Description |
+| --- | --- |
+| `graphics_size()` | Return `(width, height)` in pixels. |
+| `graphics_clear(color=0)` | Allocate or clear the graphics buffer and show it. |
+| `graphics_pixel(x, y, color)` | Draw one pixel. |
+| `graphics_line(x0, y0, x1, y1, color)` | Draw a line including both endpoints. |
+| `graphics_show()` | Show the retained graphics in automatic mode. |
+| `refresh()` | Present pending changes during a running script. |
+
+Coordinates start at the top-left and must be within the graphics area; colors
+are RGB565 integers from `0` to `65535`. Call `graphics_clear()` before drawing.
+Invalid coordinates or colors raise `ValueError`; allocation or unavailable
+graphics raises `OSError`. Drawing automatically switches to graphics mode.
+Printing or an exception switches to the retained text view; `graphics_show()`
+returns to the retained graphics in automatic mode. Starting another run
+clears the output and releases the previous graphics buffer. Graphics persist
+through editor redraws after a script ends. The graphics buffer uses two bytes
+per pixel and is allocated separately from the 128 KiB MicroPython heap; on
+ESP32-P4 it uses external PSRAM. NumPy-compatible arrays and a high-level plot
+API are not included yet.
+
+Press **Ctrl+G** to toggle between the retained text and graphics, during or
+after a run. If no graphics have been created, the text view remains visible.
+Once toggled, the selected view remains visible even as the script prints or
+draws; a Python exception switches to text so its message is visible. Starting
+another run restores automatic switching between text and graphics.
+
 ## ESP32-P4 setup
 
 ![pocketgen running the maze demo on the ESP32-P4 Function EV Board](docs/images/native-sim-cube.jpg)

@@ -94,6 +94,15 @@ zephyr_library_sources(
   ${MICROPY_DIR}/shared/runtime/gchelper_generic.c
 )
 zephyr_library_link_libraries(kernel)
+# Resolve C math before the Rust target's compiler-builtins: their native-sim
+# floating-point ABI differs from the host C ABI. Picolibc stores libm in libc.
+if(BOARD STREQUAL "native_sim")
+  target_sources(app PRIVATE src/c/native_math.c)
+  target_sources(native_simulator INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/src/c/native_math_host.c)
+  target_link_options(native_simulator INTERFACE "-lm")
+else()
+  zephyr_library_link_libraries(m c)
+endif()
 include(${MICROPY_DIR}/py/mkrules.cmake)
 add_custom_command(OUTPUT ${MICROPY_QSTRDEFS_LAST} APPEND
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/c/mpconfigport.h

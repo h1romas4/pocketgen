@@ -11,6 +11,9 @@ typedef long mp_off_t;
 #define MICROPY_PY_GC (1)
 #define MICROPY_PY_SYS (1)
 #define MICROPY_PY_SYS_PLATFORM "zephyr"
+#define MICROPY_FLOAT_IMPL (MICROPY_FLOAT_IMPL_DOUBLE)
+#define MICROPY_PY_MATH (1)
+#define MICROPY_PY_MATH_CONSTANTS (1)
 #define MICROPY_KBD_EXCEPTION (1)
 #define MICROPY_VM_HOOK_LOOP do { pocketgen_vm_hook(); } while (0);
 #define MICROPY_STACK_CHECK (1)

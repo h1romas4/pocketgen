@@ -27,6 +27,7 @@ static union {
     ;
 static pocketgen_output_callback_t output_callback;
 static pocketgen_progress_callback_t progress_callback;
+static pocketgen_graphics_callback_t graphics_callback;
 static void *output_context;
 static uint16_t terminal_cols;
 static uint16_t terminal_rows;
@@ -151,6 +152,76 @@ static mp_obj_t pocketgen_sleep_ms(mp_obj_t ms_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(pocketgen_sleep_ms_obj, pocketgen_sleep_ms);
 
+static int graphics_command(uint32_t command, int32_t x0, int32_t y0,
+    int32_t x1, int32_t y1, uint32_t color) {
+    if (graphics_callback == NULL) {
+        mp_raise_OSError(ENODEV);
+    }
+    int result = graphics_callback(output_context, command, x0, y0, x1, y1, color);
+    if (result < 0) {
+        mp_raise_OSError(-result);
+    }
+    return result;
+}
+
+static mp_int_t graphics_coordinate(mp_obj_t obj, uint32_t dimension) {
+    mp_int_t value = mp_obj_get_int(obj);
+    int limit = graphics_command(dimension, 0, 0, 0, 0, 0);
+    if (value < 0 || value >= limit) {
+        mp_raise_ValueError(MP_ERROR_TEXT("graphics coordinate out of range"));
+    }
+    return value;
+}
+
+static uint32_t graphics_color(mp_obj_t obj) {
+    mp_int_t color = mp_obj_get_int(obj);
+    if (color < 0 || color > UINT16_MAX) {
+        mp_raise_ValueError(MP_ERROR_TEXT("RGB565 color out of range"));
+    }
+    return (uint32_t)color;
+}
+
+static mp_obj_t pocketgen_graphics_size(void) {
+    mp_obj_t dimensions[] = {
+        mp_obj_new_int(graphics_command(POCKETGEN_GRAPHICS_WIDTH, 0, 0, 0, 0, 0)),
+        mp_obj_new_int(graphics_command(POCKETGEN_GRAPHICS_HEIGHT, 0, 0, 0, 0, 0)),
+    };
+    return mp_obj_new_tuple(2, dimensions);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(pocketgen_graphics_size_obj, pocketgen_graphics_size);
+
+static mp_obj_t pocketgen_graphics_clear(size_t n_args, const mp_obj_t *args) {
+    uint32_t color = n_args ? graphics_color(args[0]) : 0;
+    graphics_command(POCKETGEN_GRAPHICS_CLEAR, 0, 0, 0, 0, color);
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(pocketgen_graphics_clear_obj, 0, 1, pocketgen_graphics_clear);
+
+static mp_obj_t pocketgen_graphics_pixel(mp_obj_t x, mp_obj_t y, mp_obj_t color) {
+    mp_int_t px = graphics_coordinate(x, POCKETGEN_GRAPHICS_WIDTH);
+    mp_int_t py = graphics_coordinate(y, POCKETGEN_GRAPHICS_HEIGHT);
+    graphics_command(POCKETGEN_GRAPHICS_PIXEL, px, py, 0, 0, graphics_color(color));
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_3(pocketgen_graphics_pixel_obj, pocketgen_graphics_pixel);
+
+static mp_obj_t pocketgen_graphics_line(size_t n_args, const mp_obj_t *args) {
+    (void)n_args;
+    mp_int_t x0 = graphics_coordinate(args[0], POCKETGEN_GRAPHICS_WIDTH);
+    mp_int_t y0 = graphics_coordinate(args[1], POCKETGEN_GRAPHICS_HEIGHT);
+    mp_int_t x1 = graphics_coordinate(args[2], POCKETGEN_GRAPHICS_WIDTH);
+    mp_int_t y1 = graphics_coordinate(args[3], POCKETGEN_GRAPHICS_HEIGHT);
+    graphics_command(POCKETGEN_GRAPHICS_LINE, x0, y0, x1, y1, graphics_color(args[4]));
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(pocketgen_graphics_line_obj, 5, 5, pocketgen_graphics_line);
+
+static mp_obj_t pocketgen_graphics_show(void) {
+    graphics_command(POCKETGEN_GRAPHICS_SHOW, 0, 0, 0, 0, 0);
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(pocketgen_graphics_show_obj, pocketgen_graphics_show);
+
 static const mp_rom_map_elem_t pocketgen_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_pocketgen) },
     { MP_ROM_QSTR(MP_QSTR_cls), MP_ROM_PTR(&pocketgen_cls_obj) },
@@ -159,6 +230,11 @@ static const mp_rom_map_elem_t pocketgen_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_color), MP_ROM_PTR(&pocketgen_color_obj) },
     { MP_ROM_QSTR(MP_QSTR_refresh), MP_ROM_PTR(&pocketgen_refresh_obj) },
     { MP_ROM_QSTR(MP_QSTR_sleep_ms), MP_ROM_PTR(&pocketgen_sleep_ms_obj) },
+    { MP_ROM_QSTR(MP_QSTR_graphics_size), MP_ROM_PTR(&pocketgen_graphics_size_obj) },
+    { MP_ROM_QSTR(MP_QSTR_graphics_clear), MP_ROM_PTR(&pocketgen_graphics_clear_obj) },
+    { MP_ROM_QSTR(MP_QSTR_graphics_pixel), MP_ROM_PTR(&pocketgen_graphics_pixel_obj) },
+    { MP_ROM_QSTR(MP_QSTR_graphics_line), MP_ROM_PTR(&pocketgen_graphics_line_obj) },
+    { MP_ROM_QSTR(MP_QSTR_graphics_show), MP_ROM_PTR(&pocketgen_graphics_show_obj) },
 };
 static MP_DEFINE_CONST_DICT(pocketgen_module_globals, pocketgen_module_globals_table);
 
@@ -170,7 +246,8 @@ MP_REGISTER_MODULE(MP_QSTR_pocketgen, pocketgen_module);
 
 int pocketgen_micropython_run(const uint8_t *source, size_t len,
     uint16_t cols, uint16_t rows, pocketgen_output_callback_t callback,
-    pocketgen_progress_callback_t progress, void *context, size_t *free_bytes) {
+    pocketgen_progress_callback_t progress, pocketgen_graphics_callback_t graphics,
+    void *context, size_t *free_bytes) {
     if (source == NULL || cols == 0 || rows == 0 || callback == NULL ||
         free_bytes == NULL || output_callback != NULL) {
         return -EINVAL;
@@ -178,6 +255,7 @@ int pocketgen_micropython_run(const uint8_t *source, size_t len,
 
     output_callback = callback;
     progress_callback = progress;
+    graphics_callback = graphics;
     output_context = context;
     terminal_cols = cols;
     terminal_rows = rows;
@@ -208,6 +286,7 @@ int pocketgen_micropython_run(const uint8_t *source, size_t len,
     mp_deinit();
     output_callback = NULL;
     progress_callback = NULL;
+    graphics_callback = NULL;
     output_context = NULL;
     return result;
 }

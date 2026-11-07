@@ -13,6 +13,7 @@ extern crate alloc;
 mod allocator;
 mod display_buffer;
 mod highlight_benchmark;
+mod output_pane;
 mod python;
 mod self_test;
 mod ui;
@@ -26,13 +27,14 @@ use embedded_graphics::geometry::Size;
 use embedded_graphics::pixelcolor::{raw::RawU16, Rgb565};
 use embedded_graphics::prelude::RawData;
 use log::{error, info, warn};
+use output_pane::OutputPane;
 use pocketgen_editor::{Decoder, Editor, Key, Menu, Search};
 use pocketgen_terminal::vt100;
 use pocketgen_terminal::TerminalRenderer;
 use python::{execute, LiveDisplay};
 use self_test::{
-    test_demo_execution, test_demo_loading, test_editor_viewport, test_heap_status, test_search,
-    test_selection_and_menu, test_syntax_highlighting, test_terminal_bridge,
+    test_demo_execution, test_demo_loading, test_editor_viewport, test_graphics, test_heap_status,
+    test_search, test_selection_and_menu, test_syntax_highlighting, test_terminal_bridge,
     test_terminal_controls,
 };
 use ui::{blue_bar, draw_running, draw_shortcuts, render_display, terminal, Bar};
@@ -85,6 +87,16 @@ fn apply_input(
             info!("Loaded mexican hat demo");
             return true;
         }
+        Key::DemoSineGraph => {
+            editor.replace_all(include_str!("../examples/sine_graph.py"));
+            info!("Loaded sine graph demo");
+            return true;
+        }
+        Key::DemoMexicanHatGraphics => {
+            editor.replace_all(include_str!("../examples/mexican_hat_graphics.py"));
+            info!("Loaded mexican hat graphics demo");
+            return true;
+        }
         _ => {}
     }
     if key != Key::Run {
@@ -124,6 +136,7 @@ fn process_key(
     right: &mut vt100::Parser,
     left_renderer: &mut TerminalRenderer,
     right_renderer: &mut TerminalRenderer,
+    output_pane: &mut OutputPane,
     right_header: &mut Bar,
     footer: &mut Bar,
     pixels: &mut [u16],
@@ -131,6 +144,10 @@ fn process_key(
     height: u16,
     self_test: bool,
 ) -> bool {
+    if key == Key::ToggleOutput {
+        output_pane.toggle();
+        return true;
+    }
     if menu.state().is_none() && search.handle(key, editor) {
         return true;
     }
@@ -159,6 +176,7 @@ fn process_key(
             right,
             left_renderer,
             right_renderer,
+            output_pane,
             right_header,
             footer,
             pixels,
@@ -174,6 +192,7 @@ fn process_key(
     let bar_height = footer.height();
     let mut live = LiveDisplay {
         renderer: right_renderer,
+        pane: output_pane,
         pixels,
         width,
         height,
@@ -325,6 +344,7 @@ extern "C" fn rust_main() {
         error!("Display is too small for the right terminal");
         return;
     };
+    let mut output_pane = OutputPane::new(right_width, height - 2 * bar_height);
     let Some(mut right_header) =
         Bar::new(Size::new(right_width.into(), bar_height.into()), right_x, 0)
     else {
@@ -389,11 +409,29 @@ extern "C" fn rust_main() {
         error!("Unable to allocate display buffer");
         return;
     };
+    if self_test > 0 {
+        if !test_graphics(
+            &mut right_renderer,
+            &mut right,
+            &mut output_pane,
+            &mut pixels,
+            width,
+            height,
+            bar_height,
+        ) {
+            error!("Graphics integration test failed");
+            return;
+        }
+        info!("Graphics integration test passed");
+        output_pane.reset();
+        right.process(b"\x1b[0m\x1b[2J\x1b[H\x1b[?25l");
+    }
     let result = render_display(
         &left,
         &right,
         &mut left_renderer,
         &mut right_renderer,
+        &output_pane,
         &mut right_header,
         &mut footer,
         &mut pixels,
@@ -425,6 +463,7 @@ extern "C" fn rust_main() {
         let test_editor = Editor::new(&format!("{}run_demo(8, 0)\n", definitions));
         let mut live = LiveDisplay {
             renderer: &mut right_renderer,
+            pane: &mut output_pane,
             pixels: &mut pixels,
             width,
             height,
@@ -497,6 +536,7 @@ extern "C" fn rust_main() {
                 .contains(&format!("MicroPython v{}", version))
             || !shortcuts.contains("F10")
             || !shortcuts.contains("^R")
+            || !shortcuts.contains("^G")
             || !shortcuts.contains("^Z")
             || !shortcuts.contains("^V")
             || !shortcuts.ends_with(&format!("MP free: {} B", result.free_bytes.unwrap_or(0)))
@@ -526,6 +566,7 @@ extern "C" fn rust_main() {
         &right,
         &mut left_renderer,
         &mut right_renderer,
+        &output_pane,
         &mut right_header,
         &mut footer,
         &mut pixels,
@@ -581,6 +622,7 @@ extern "C" fn rust_main() {
             &mut right,
             &mut left_renderer,
             &mut right_renderer,
+            &mut output_pane,
             &mut right_header,
             &mut footer,
             &mut pixels,
@@ -602,6 +644,7 @@ extern "C" fn rust_main() {
             &right,
             &mut left_renderer,
             &mut right_renderer,
+            &output_pane,
             &mut right_header,
             &mut footer,
             &mut pixels,
@@ -640,6 +683,7 @@ extern "C" fn rust_main() {
                     &mut right,
                     &mut left_renderer,
                     &mut right_renderer,
+                    &mut output_pane,
                     &mut right_header,
                     &mut footer,
                     &mut pixels,
@@ -663,6 +707,7 @@ extern "C" fn rust_main() {
                         &mut right,
                         &mut left_renderer,
                         &mut right_renderer,
+                        &mut output_pane,
                         &mut right_header,
                         &mut footer,
                         &mut pixels,
@@ -696,6 +741,7 @@ extern "C" fn rust_main() {
                             &mut right,
                             &mut left_renderer,
                             &mut right_renderer,
+                            &mut output_pane,
                             &mut right_header,
                             &mut footer,
                             &mut pixels,
@@ -727,6 +773,7 @@ extern "C" fn rust_main() {
                 &right,
                 &mut left_renderer,
                 &mut right_renderer,
+                &output_pane,
                 &mut right_header,
                 &mut footer,
                 &mut pixels,
