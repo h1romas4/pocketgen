@@ -23,6 +23,8 @@ These files are adapted from Microsoft Edit at the commit above:
 
 - Heap-backed gap buffer with byte-offset edits and revision tracking.
 - UTF-8 editing, cursor movement, selection, clipboard, and bounded undo history.
+- Case-sensitive forward and backward search with wraparound, selection-based
+  query initialization, and a bounded UTF-8 query.
 - UART key decoding, menu navigation, and character display-width calculation.
 - Independent allocation-free Python lexer for experimental syntax highlighting.
 

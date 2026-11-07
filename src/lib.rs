@@ -26,12 +26,12 @@ use embedded_graphics::geometry::Size;
 use embedded_graphics::pixelcolor::{raw::RawU16, Rgb565};
 use embedded_graphics::prelude::RawData;
 use log::{error, info, warn};
-use pocketgen_editor::{Decoder, Editor, Key, Menu};
+use pocketgen_editor::{Decoder, Editor, Key, Menu, Search};
 use pocketgen_terminal::vt100;
 use pocketgen_terminal::TerminalRenderer;
 use python::{execute, LiveDisplay};
 use self_test::{
-    test_demo_execution, test_demo_loading, test_editor_viewport, test_heap_status,
+    test_demo_execution, test_demo_loading, test_editor_viewport, test_heap_status, test_search,
     test_selection_and_menu, test_syntax_highlighting, test_terminal_bridge,
     test_terminal_controls,
 };
@@ -117,6 +117,7 @@ fn apply_input(
 fn process_key(
     key: Key,
     menu: &mut Menu,
+    search: &mut Search,
     editor: &mut Editor,
     viewport: &mut Viewport,
     left: &mut vt100::Parser,
@@ -130,6 +131,9 @@ fn process_key(
     height: u16,
     self_test: bool,
 ) -> bool {
+    if menu.state().is_none() && search.handle(key, editor) {
+        return true;
+    }
     let page = if menu.state().is_none()
         && matches!(
             key,
@@ -251,6 +255,11 @@ extern "C" fn rust_main() {
             return;
         }
         info!("Editor viewport test passed");
+        if !test_search(left_size) {
+            error!("Search test failed");
+            return;
+        }
+        info!("Search test passed");
         if !test_syntax_highlighting(left_size) {
             error!("Syntax highlighting test failed");
             return;
@@ -355,6 +364,7 @@ extern "C" fn rust_main() {
     };
     let mut editor = Editor::new(initial_source);
     let mut menu = Menu::default();
+    let mut search = Search::default();
     let mut viewport = Viewport { top: 0, left: 0 };
     highlight_benchmark::run(
         &editor,
@@ -564,6 +574,7 @@ extern "C" fn rust_main() {
         if !process_key(
             Key::Run,
             &mut menu,
+            &mut search,
             &mut editor,
             &mut viewport,
             &mut left,
@@ -618,11 +629,34 @@ extern "C" fn rust_main() {
                 break;
             }
             received = true;
+            if let Some(key) = decoder.escape_before(byte) {
+                if !process_key(
+                    key,
+                    &mut menu,
+                    &mut search,
+                    &mut editor,
+                    &mut viewport,
+                    &mut left,
+                    &mut right,
+                    &mut left_renderer,
+                    &mut right_renderer,
+                    &mut right_header,
+                    &mut footer,
+                    &mut pixels,
+                    width,
+                    height,
+                    self_test > 0,
+                ) {
+                    return;
+                }
+                changed = true;
+            }
             match decoder.feed(byte) {
                 Ok(Some(key)) => {
                     if !process_key(
                         key,
                         &mut menu,
+                        &mut search,
                         &mut editor,
                         &mut viewport,
                         &mut left,
@@ -648,12 +682,14 @@ extern "C" fn rust_main() {
             idle = 0;
         } else if decoder.pending() {
             idle += 1;
-            if idle >= 50 {
+            let limit = if decoder.pending_escape() { 5 } else { 50 };
+            if idle >= limit {
                 match decoder.timeout() {
                     Ok(Some(key)) => {
                         if !process_key(
                             key,
                             &mut menu,
+                            &mut search,
                             &mut editor,
                             &mut viewport,
                             &mut left,
@@ -685,6 +721,7 @@ extern "C" fn rust_main() {
                 left_renderer.rows(),
                 left_renderer.cols(),
             );
+            viewport.render_search(&search, &mut left, left_renderer.cols());
             let result = render_display(
                 &left,
                 &right,

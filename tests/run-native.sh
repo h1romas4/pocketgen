@@ -28,6 +28,7 @@ for message in \
     'MicroPython integration tests passed' \
     'Terminal bridge test passed' \
     'Editor viewport test passed' \
+    'Search test passed' \
     'Syntax highlighting test passed' \
     'Pane divider test passed' \
     'Solid blue maze wall test passed' \

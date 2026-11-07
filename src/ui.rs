@@ -110,6 +110,7 @@ pub(crate) fn draw_shortcuts(bar: &mut Bar, free_bytes: Option<usize>) {
         (" F10 ", " Menu  "),
         (" ^E ", " Menu  "),
         (" ^R ", " Run  "),
+        (" ^F ", " Find  "),
         (" ^Z ", " Undo  "),
         (" ^X ", " Cut  "),
         (" ^C ", " Copy  "),

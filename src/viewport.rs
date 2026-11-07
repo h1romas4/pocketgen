@@ -1,8 +1,11 @@
 //! Rendering of the editor document, selection, cursor, and menu into VT100.
 
-use alloc::{format, string::ToString};
+use alloc::{
+    format,
+    string::{String, ToString},
+};
 use pocketgen_editor::syntax::{Highlighter, Kind};
-use pocketgen_editor::{width as text_width, Editor, Menu};
+use pocketgen_editor::{width as text_width, Editor, Menu, Search, SearchStatus};
 use pocketgen_terminal::vt100;
 
 use crate::ui::blue_bar;
@@ -30,6 +33,49 @@ pub(crate) struct Viewport {
 }
 
 impl Viewport {
+    /// Displays the active search prompt in the editor header.
+    pub(crate) fn render_search(&self, search: &Search, parser: &mut vt100::Parser, cols: u16) {
+        if !search.active() {
+            return;
+        }
+        let feedback = match search.status() {
+            SearchStatus::Ready => "",
+            SearchStatus::NotFound => " [Not found]",
+            SearchStatus::QueryTooLong => " [Query too long]",
+        };
+        let prefix = " Find: ";
+        let available = usize::from(cols).saturating_sub(prefix.len() + feedback.len());
+        let query: String = search
+            .query()
+            .chars()
+            .map(|ch| if ch.is_control() { ' ' } else { ch })
+            .collect();
+        let mut start = query.len();
+        let mut used = 0;
+        for (index, ch) in query.char_indices().rev() {
+            let size = text_width(ch.encode_utf8(&mut [0; 4]));
+            if used + size > available {
+                break;
+            }
+            used += size;
+            start = index;
+        }
+        parser.process(b"\x1b[1;1H\x1b[97;44m");
+        let mut remaining = usize::from(cols);
+        for ch in format!("{}{}{}", prefix, &query[start..], feedback).chars() {
+            let mut buf = [0; 4];
+            let encoded = ch.encode_utf8(&mut buf);
+            let size = text_width(encoded);
+            if size > remaining {
+                break;
+            }
+            parser.process(encoded.as_bytes());
+            remaining -= size;
+        }
+        parser.process(format!("{:width$}", "", width = remaining).as_bytes());
+        parser.process(b"\x1b[0m\x1b[?25l");
+    }
+
     pub(crate) fn scroll_page(&mut self, text: &str, old: usize, new: usize, rows: u16) {
         let old_line = text[..old].bytes().filter(|byte| *byte == b'\n').count();
         let new_line = text[..new].bytes().filter(|byte| *byte == b'\n').count();

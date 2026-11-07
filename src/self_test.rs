@@ -5,13 +5,68 @@
 
 use alloc::{format, vec};
 use embedded_graphics::geometry::Size;
-use pocketgen_editor::{Editor, Key, Menu};
+use pocketgen_editor::{Editor, Key, Menu, Search, SearchStatus};
 use pocketgen_terminal::{vt100, Rgb565Surface};
 
 use crate::apply_input;
 use crate::python::execute;
 use crate::ui::{draw_running, draw_shortcuts, terminal, Bar};
 use crate::viewport::{pocketgen_syntax_highlight_enabled, Viewport};
+
+/// Checks search input, selection, scrolling, and prompt rendering.
+pub(crate) fn test_search(size: Size) -> bool {
+    let Some((_, mut parser)) = terminal(size) else {
+        return false;
+    };
+    let mut editor = Editor::new("zero\none\n日\nlast 日");
+    let mut search = Search::default();
+    let mut viewport = Viewport { top: 0, left: 0 };
+    search.handle(Key::Find, &mut editor);
+    search.handle(Key::Character('日'), &mut editor);
+    search.handle(Key::Enter, &mut editor);
+    viewport.render(&editor, &Menu::default(), &mut parser, 3, 24);
+    viewport.render_search(&search, &mut parser, 24);
+    if editor.selection() != Some(9..12)
+        || viewport.top != 1
+        || !parser.screen().contents().contains("Find: 日")
+        || !parser
+            .screen()
+            .cell(2, 3)
+            .is_some_and(|cell| cell.inverse())
+    {
+        return false;
+    }
+    search.handle(Key::Enter, &mut editor);
+    viewport.render(&editor, &Menu::default(), &mut parser, 3, 24);
+    if editor.selection() != Some(18..21) || viewport.top != 2 {
+        return false;
+    }
+    search.handle(Key::FindPrevious, &mut editor);
+    viewport.render(&editor, &Menu::default(), &mut parser, 3, 24);
+    if editor.selection() != Some(9..12) || viewport.top != 2 {
+        return false;
+    }
+    search.handle(Key::Backspace, &mut editor);
+    search.handle(Key::Character('z'), &mut editor);
+    search.handle(Key::Character('z'), &mut editor);
+    search.handle(Key::Enter, &mut editor);
+    viewport.render_search(&search, &mut parser, 24);
+    if search.status() != SearchStatus::NotFound
+        || !parser.screen().contents().contains("[Not found]")
+    {
+        return false;
+    }
+    search.handle(Key::Escape, &mut editor);
+    viewport.render(&editor, &Menu::default(), &mut parser, 3, 24);
+    if search.active() || !parser.screen().contents().contains("Demo  Edit  Run") {
+        return false;
+    }
+    let mut editor = Editor::new("日\t日");
+    editor.apply(Key::SelectAll);
+    search.handle(Key::Find, &mut editor);
+    viewport.render_search(&search, &mut parser, 24);
+    search.query() == "日\t日" && parser.screen().contents().contains("Find: 日 日")
+}
 
 /// Checks Python output, exception reporting, and rendering within the pane.
 pub(crate) fn test_terminal_bridge(width: u16, height: u16, x_offset: u16, size: Size) -> bool {

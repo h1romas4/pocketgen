@@ -91,6 +91,13 @@ send input to pocketgen.
 Press **Ctrl+R** to run the editor buffer, **Ctrl+C** to interrupt execution,
 and **Ctrl+]** to exit the simulator. The **F10** menu provides sample demos.
 
+Press **Ctrl+F** to search the editor. Type a case-sensitive query and press
+**Enter** or **Ctrl+N** to select the next match, or **Ctrl+P** for the
+previous match. Search wraps around the document. An existing single-line
+selection of up to 256 UTF-8 bytes pre-fills the query; the first search moves
+to the next or previous match. **Backspace** edits the query and **Esc** closes
+search, leaving the match selected. The query is limited to 256 UTF-8 bytes.
+
 ## ESP32-P4 setup
 
 ![pocketgen running the maze demo on the ESP32-P4 Function EV Board](docs/images/native-sim-cube.jpg)
@@ -127,11 +134,13 @@ screen /dev/ttyUSB0 115200
 
 Type in this terminal while watching the LCD. The board configuration starts
 the 3D Cube demo automatically; **Ctrl+C** stops it and returns to the editor.
-Use **Ctrl+R** to run the buffer and **Ctrl+E** to open the menu. `screen`
+Use **Ctrl+R** to run the buffer, **Ctrl+F** to search, and **Ctrl+E** to open
+the menu. `screen`
 reserves Ctrl+A: to send Ctrl+A to the editor, press **Ctrl+A**, release it,
 then press **A**. To exit `screen` and release the serial port, press
 **Ctrl+A**, then **K**, then **Y**. Ctrl+A followed by D only detaches and
-leaves the port in use.
+leaves the port in use. `screen` may delay a standalone **Esc** while it
+distinguishes it from terminal key sequences.
 
 Set
 `CONFIG_POCKETGEN_AUTOSTART_CUBE=n` in the

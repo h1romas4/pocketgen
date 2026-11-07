@@ -24,11 +24,14 @@ pub mod document;
 mod gap_buffer;
 /// Word-boundary navigation over readable documents.
 pub mod navigation;
+mod search;
 /// Lightweight Python lexical highlighting.
 pub mod syntax;
 
 /// Heap-backed gap buffer used by the editor.
 pub use gap_buffer::GapBuffer;
+/// Search prompt state and forward document search.
+pub use search::{Search, SearchStatus};
 
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -98,6 +101,12 @@ pub enum Key {
     SelectAll,
     /// Open or close the menu.
     Menu,
+    /// Open the search prompt.
+    Find,
+    /// Search for the previous match.
+    FindPrevious,
+    /// Search for the next match.
+    FindNext,
     /// Close the menu or clear the editor's selection.
     Escape,
     /// Request execution by the application.
@@ -125,7 +134,9 @@ pub enum InputError {
 ///
 /// Escape sequences and multi-byte UTF-8 characters may span calls to
 /// [`feed`](Self::feed). Call [`timeout`](Self::timeout) after an input pause
-/// to resolve a standalone Escape or discard an incomplete sequence.
+/// to resolve a standalone Escape or discard an incomplete sequence. Before
+/// feeding each byte, call [`escape_before`](Self::escape_before) to resolve a
+/// standalone Escape when the next byte cannot start a supported sequence.
 #[derive(Default)]
 pub struct Decoder {
     escape: [u8; 8],
@@ -140,6 +151,23 @@ impl Decoder {
     /// Returns whether an escape sequence or UTF-8 character is incomplete.
     pub fn pending(&self) -> bool {
         self.escape_len != 0 || self.utf8_len != 0
+    }
+
+    /// Returns whether a standalone Escape is awaiting disambiguation.
+    pub fn pending_escape(&self) -> bool {
+        self.escape_len == 1
+    }
+
+    /// Resolves a pending Escape before a byte that cannot continue a sequence.
+    ///
+    /// The caller must still pass `byte` to [`feed`](Self::feed).
+    pub fn escape_before(&mut self, byte: u8) -> Option<Key> {
+        if self.pending_escape() && byte != b'[' && byte != b'O' {
+            self.escape_len = 0;
+            Some(Key::Escape)
+        } else {
+            None
+        }
     }
 
     /// Discards any incomplete input and resets CRLF handling.
@@ -262,6 +290,9 @@ impl Decoder {
             0x01 => Some(Key::SelectAll),
             0x03 => Some(Key::Copy),
             0x05 => Some(Key::Menu),
+            0x06 => Some(Key::Find),
+            0x0e => Some(Key::FindNext),
+            0x10 => Some(Key::FindPrevious),
             0x12 => Some(Key::Run),
             0x16 => Some(Key::Paste),
             0x18 => Some(Key::Cut),
@@ -565,6 +596,9 @@ impl Editor {
             }
             Key::Run
             | Key::Menu
+            | Key::Find
+            | Key::FindPrevious
+            | Key::FindNext
             | Key::Escape
             | Key::DemoMaze
             | Key::DemoStarfield
@@ -749,8 +783,43 @@ mod tests {
     }
 
     #[test]
+    fn resolves_escape_before_following_keys_without_losing_input() {
+        let cases: &[(&[u8], &[Key])] = &[
+            (b"\x1bx", &[Key::Escape, Key::Character('x')]),
+            (b"\x1b\xe6\x97\xa5", &[Key::Escape, Key::Character('日')]),
+            (b"\x1b\x12", &[Key::Escape, Key::Run]),
+            (b"\x1b\x1b[A", &[Key::Escape, Key::Up]),
+            (b"\x1b[A", &[Key::Up]),
+            (b"\x1bOA", &[Key::Up]),
+        ];
+        for &(bytes, expected) in cases {
+            let mut decoder = Decoder::default();
+            let mut keys = Vec::new();
+            for &byte in bytes {
+                if let Some(key) = decoder.escape_before(byte) {
+                    keys.push(key);
+                }
+                if let Some(key) = decoder.feed(byte).unwrap() {
+                    keys.push(key);
+                }
+            }
+            assert_eq!(keys, expected, "sequence: {bytes:?}");
+            assert!(!decoder.pending());
+        }
+        let mut decoder = Decoder::default();
+        decoder.feed(0x1b).unwrap();
+        assert!(decoder.pending_escape());
+        assert_eq!(decoder.timeout(), Ok(Some(Key::Escape)));
+        assert!(!decoder.pending_escape());
+        assert_eq!(decoder.feed(b'['), Ok(Some(Key::Character('['))));
+    }
+
+    #[test]
     fn decodes_document_navigation_shortcuts() {
+        assert_eq!(Decoder::default().feed(0x02), Ok(None));
         let cases: &[(&[u8], Key)] = &[
+            (b"\x10", Key::FindPrevious),
+            (b"\x0e", Key::FindNext),
             (b"\x1b[1;5H", Key::CtrlHome),
             (b"\x1b[1;5~", Key::CtrlHome),
             (b"\x1b[7;5~", Key::CtrlHome),

@@ -124,6 +124,33 @@ try:
     wait_for(b"UART editor execution test passed", start)
     print(f"Page Up/Down passed ({mode})")
 
+    for delay in (0, 1.5 if via_screen else 0.3):
+        start = len(output)
+        os.write(
+            serial_fd,
+            select_all + b"print('uart-bad')\r"
+            + b"\x1b[1;5H\x06bad\r\x1b",
+        )
+        if delay:
+            time.sleep(delay)
+        # A leading '[' is ambiguous with an escape sequence until the
+        # standalone Escape has timed out.
+        os.write(serial_fd, (b"[\x7f" if delay else b"") + b"ok\x12")
+        wait_for(b"UART editor execution test passed", start)
+        if b"Invalid input: UnknownEscape" in output[start:]:
+            raise RuntimeError("Escape and following input were not decoded separately")
+    print(f"Ctrl+F search and Escape with immediate/delayed input passed ({mode})")
+
+    start = len(output)
+    os.write(
+        serial_fd,
+        select_all + b"print('uart-bad')\r# bad\r# bad"
+        + b"\x1b[1;2D" * 3 + b"\x06"
+        + b"\x10\x0e\x10\x10\x1bok\x12",
+    )
+    wait_for(b"UART editor execution test passed", start)
+    print(f"Selection-prefilled Ctrl+P/Ctrl+N search passed ({mode})")
+
     for name, selection in ((b"starfield", b"\x1b[B"),
                             (b"cube", b"\x1b[B\x1b[B"),
                             (b"mexican hat", b"\x1b[A"),
