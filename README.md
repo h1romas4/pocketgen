@@ -143,7 +143,10 @@ definition targets v1.3, and revision and ROM SHA-256 warnings appear at boot.
 
 ## License
 
-pocketgen is [MIT licensed](LICENSE). Third-party components retain their own licenses,
-including the [Microsoft Edit-derived editor](components/pocketgen-editor/THIRD_PARTY_NOTICES.md),
-the [terminal component](components/pocketgen-terminal/THIRD_PARTY_NOTICES.md), and
-[MicroPython](components/micropython/LICENSE).
+pocketgen is [MIT licensed](LICENSE).
+
+Third-party components retain their own licenses:
+
+- [Microsoft Edit-derived editor](components/pocketgen-editor/THIRD_PARTY_NOTICES.md)
+- [embedded-graphics-terminal-derived terminal](components/pocketgen-terminal/THIRD_PARTY_NOTICES.md)
+- [MicroPython](components/micropython/LICENSE)
