@@ -234,6 +234,7 @@ impl Viewport {
                         " Chart Bar         ",
                         " Chart Pie         ",
                         " Numeric RC        ",
+                        " Snake             ",
                     ],
                 ),
                 1 => (

@@ -141,6 +141,8 @@ pub enum Key {
     DemoChartPie,
     /// Request loading the numerical calculation example.
     DemoNumericRc,
+    /// Request loading the snake game.
+    DemoSnake,
 }
 
 /// An invalid or incomplete terminal input sequence.
@@ -636,7 +638,8 @@ impl Editor {
             | Key::DemoChartHistogram
             | Key::DemoChartBar
             | Key::DemoChartPie
-            | Key::DemoNumericRc => return,
+            | Key::DemoNumericRc
+            | Key::DemoSnake => return,
             Key::ShiftLeft
             | Key::ShiftRight
             | Key::ShiftUp
@@ -695,11 +698,11 @@ impl Menu {
             Key::Left => self.open = Some(((group + 2) % 3, 0)),
             Key::Right => self.open = Some(((group + 1) % 3, 0)),
             Key::Up => {
-                let count = [14, 5, 1][group];
+                let count = [15, 5, 1][group];
                 self.open = Some((group, (item + count - 1) % count));
             }
             Key::Down => {
-                let count = [14, 5, 1][group];
+                let count = [15, 5, 1][group];
                 self.open = Some((group, (item + 1) % count));
             }
             Key::Enter => {
@@ -719,6 +722,7 @@ impl Menu {
                     (0, 11) => Key::DemoChartBar,
                     (0, 12) => Key::DemoChartPie,
                     (0, 13) => Key::DemoNumericRc,
+                    (0, 14) => Key::DemoSnake,
                     (1, 0) => Key::Undo,
                     (1, 1) => Key::Cut,
                     (1, 2) => Key::Copy,
@@ -1117,14 +1121,15 @@ mod tests {
         menu.handle(Key::Menu);
         assert_eq!(menu.handle(Key::Enter), Some(Key::DemoMaze));
         for (up_count, expected) in [
-            (1, Key::DemoNumericRc),
-            (2, Key::DemoChartPie),
-            (3, Key::DemoChartBar),
-            (4, Key::DemoChartHistogram),
-            (5, Key::DemoChartScatter),
-            (6, Key::DemoPlotGrowth),
-            (7, Key::DemoPlotProjectile),
-            (8, Key::DemoPlotTrig),
+            (1, Key::DemoSnake),
+            (2, Key::DemoNumericRc),
+            (3, Key::DemoChartPie),
+            (4, Key::DemoChartBar),
+            (5, Key::DemoChartHistogram),
+            (6, Key::DemoChartScatter),
+            (7, Key::DemoPlotGrowth),
+            (8, Key::DemoPlotProjectile),
+            (9, Key::DemoPlotTrig),
         ] {
             menu.handle(Key::Menu);
             for _ in 0..up_count {

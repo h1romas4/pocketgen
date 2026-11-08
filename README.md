@@ -191,6 +191,7 @@ Loading replaces the editor buffer; **Ctrl+Z** undoes the replacement.
 | [Chart Bar](examples/chart_bar.py) | Graphics | Compares monthly balance changes. |
 | [Chart Pie](examples/chart_pie.py) | Graphics | Shows spending by category. |
 | [Numeric RC](examples/numeric_rc.py) | Graphics + text | Visualizes a discharge, half-voltage time, integral, and tangent. |
+| [Snake](examples/snake.py) | Graphics | Collect food with arrow keys or WASD; quit with Q or Esc. |
 
 **Hat (Graphics)** prints elapsed wall-clock time in the text view; use
 **Ctrl+G** to see it. The measurement includes buffer initialization, the final
@@ -219,6 +220,10 @@ scheduling waits, but not final physical scanout.
 
 ![Capacitor discharge with numerical solution, integral and tangent in native-sim](docs/images/native-sim-numeric-rc.png)
 
+**Snake**
+
+![Snake game running in native-sim](docs/images/native-sim-snake.png)
+
 ## MicroPython reference
 
 MicroPython supports double-precision floats and the `math` module. Import
@@ -234,8 +239,10 @@ the following functions from `pocketgen`:
 | `graphics_clear(color=0)` | Allocate or clear the graphics buffer and show it. |
 | `graphics_pixel(x, y, color)` | Draw one pixel. |
 | `graphics_line(x0, y0, x1, y1, color)` | Draw a line including both endpoints. |
+| `graphics_tile(x, y, rows, palette, scale=1)` | Draw a tile defined by strings and a color palette. |
 | `graphics_show()` | Show the retained graphics in automatic mode. |
 | `refresh()` | Present pending changes during a running script. |
+| `getkey()` | Return the next key as a string, or `None` without waiting. |
 | `sleep_ms(ms)` | Wait for non-negative milliseconds while processing events. |
 | `ticks_ms()` | Return a monotonic millisecond counter. |
 | `ticks_diff(end, start)` | Return the wrap-safe difference between two ticks. |
@@ -260,6 +267,49 @@ The retained graphics buffer uses two bytes per pixel, separately from the
 `ticks_ms()` wraps every 2^30 milliseconds; `ticks_diff()` is unambiguous for
 intervals shorter than 2^29 milliseconds. The standard `time` module is not
 enabled.
+
+### Map tiles
+
+```python
+from pocketgen import graphics_clear, graphics_tile, refresh
+
+apple = (".gg.", "rrrr", "rrrr", ".rr.")
+palette = {".": None, "g": 0x07e0, "r": 0xf800}
+graphics_clear()
+graphics_tile(20, 20, apple, palette, scale=4)
+refresh()
+```
+
+`rows` is a non-empty list or tuple of equally sized, non-empty strings.
+Each character must have a palette entry: an RGB565 integer or `None` for
+transparency. `scale` is a positive integer; the entire scaled tile must fit
+the graphics area. Invalid tiles, colors, or bounds raise `ValueError`.
+Call `graphics_clear()` first and `refresh()` to present during execution.
+Tiles do not automatically refresh or clear the background; map a character
+to a background color to erase or overwrite previous drawings.
+
+### Keyboard input
+
+```python
+from pocketgen import getkey, sleep_ms
+
+while True:
+    key = getkey()
+    if key == "q":
+        break
+    if key is not None:
+        print(key)
+    sleep_ms(20)
+```
+
+`getkey()` returns a Unicode character or `UP`, `DOWN`, `LEFT`, `RIGHT`,
+`ENTER`, `ESC`, `TAB`, `BACKSPACE`, `DELETE`, `HOME`, `END`, `PAGEUP`, or
+`PAGEDOWN`. Unsupported keys and invalid sequences are ignored with a warning.
+Input collection starts with the first call; earlier input consumed during
+execution is ignored. The 64-key queue is cleared between runs; if it fills,
+new keys are dropped and the next call raises `OSError(ENOBUFS)`. Ctrl+C and
+Ctrl+G remain reserved for interruption and view switching. A standalone Esc
+is recognized after a 50 ms pause; incomplete sequences time out after 500 ms.
 
 ### Function plots
 

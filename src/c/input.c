@@ -24,6 +24,10 @@ void pocketgen_input_wait(void) {
     k_msleep(10);
 }
 
+uint32_t pocketgen_input_ticks_ms(void) {
+    return k_uptime_get_32();
+}
+
 int pocketgen_syntax_highlight_enabled(void) {
     return IS_ENABLED(CONFIG_POCKETGEN_SYNTAX_HIGHLIGHT);
 }

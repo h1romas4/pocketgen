@@ -32,7 +32,6 @@ fn run_graphics_source(
         height,
         bar_height,
         error: 0,
-        ignored_input: false,
         self_test: false,
     };
     execute(&Editor::new(source), parser, Some(&mut live)).status
@@ -50,6 +49,43 @@ pub(crate) fn test_graphics(
 ) -> bool {
     if pane.toggle() {
         return false;
+    }
+    let tile_source = concat!(
+        "from pocketgen import graphics_clear, graphics_tile\n",
+        "graphics_clear(0x1234)\n",
+        "graphics_tile(2, 3, ('ab', '.a'), {'a': 0xf800, 'b': 0x07e0, '.': None}, scale=2)\n",
+        "for rows, palette in [(('a', 'aa'), {'a': 1}), (('ab',), {'a': 1}), (('a',), {'a': 65536})]:\n",
+        " try:\n",
+        "  graphics_tile(0, 0, rows, palette)\n",
+        "  raise RuntimeError('invalid tile accepted')\n",
+        " except ValueError:\n",
+        "  pass\n",
+        "try:\n",
+        " graphics_tile(-1, 0, ('a',), {'a': 1})\n",
+        " raise RuntimeError('invalid position accepted')\n",
+        "except ValueError:\n",
+        " pass\n",
+    );
+    if run_graphics_source(
+        tile_source, renderer, parser, pane, pixels, width, height, bar_height,
+    ) != 0
+    {
+        log::error!("Tile execution failed: {}", parser.screen().contents());
+        return false;
+    }
+    pixels.fill(0);
+    pane.render(parser, renderer, pixels, width, width / 2, bar_height);
+    for (x, y, color) in [
+        (2, 3, 0xf800), (3, 4, 0xf800), (4, 3, 0x07e0),
+        (5, 4, 0x07e0), (2, 5, 0x1234), (3, 6, 0x1234),
+        (4, 5, 0xf800), (5, 6, 0xf800), (1, 3, 0x1234),
+    ] {
+        let index = (usize::from(bar_height) + y) * usize::from(width)
+            + usize::from(width / 2) + x;
+        if pixels[index] != color {
+            log::error!("Tile pixel mismatch at ({}, {})", x, y);
+            return false;
+        }
     }
     let plot_source = concat!(
         "from pocketgen import plot, graphics_show\n",
@@ -693,7 +729,7 @@ pub(crate) fn test_selection_and_menu(size: Size) -> bool {
     menu.handle(Key::Menu);
     menu.handle(Key::Up);
     viewport.render(&editor, &menu, &mut parser, 4, renderer.cols());
-    if !parser.screen().contents().contains("Numeric RC")
+    if !parser.screen().contents().contains("Snake")
         || !parser
             .screen()
             .cell(3, 0)
@@ -853,14 +889,15 @@ pub(crate) fn test_demo_loading(size: Size, footer_size: Size) -> bool {
         return false;
     }
     for (up_count, source) in [
-        (8, include_str!("../examples/plot_trig.py")),
-        (7, include_str!("../examples/plot_projectile.py")),
-        (6, include_str!("../examples/plot_growth.py")),
-        (5, include_str!("../examples/chart_scatter.py")),
-        (4, include_str!("../examples/chart_histogram.py")),
-        (3, include_str!("../examples/chart_bar.py")),
-        (2, include_str!("../examples/chart_pie.py")),
-        (1, include_str!("../examples/numeric_rc.py")),
+        (9, include_str!("../examples/plot_trig.py")),
+        (8, include_str!("../examples/plot_projectile.py")),
+        (7, include_str!("../examples/plot_growth.py")),
+        (6, include_str!("../examples/chart_scatter.py")),
+        (5, include_str!("../examples/chart_histogram.py")),
+        (4, include_str!("../examples/chart_bar.py")),
+        (3, include_str!("../examples/chart_pie.py")),
+        (2, include_str!("../examples/numeric_rc.py")),
+        (1, include_str!("../examples/snake.py")),
     ] {
         for key in core::iter::once(Key::Menu)
             .chain(core::iter::repeat_n(Key::Up, up_count))

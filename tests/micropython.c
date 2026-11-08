@@ -32,7 +32,7 @@ static int check(const char *source, int expected_status, const char *expected_o
     struct captured_output output = {0};
     size_t free_bytes = 0;
     int status = pocketgen_micropython_run(
-        (const uint8_t *)source, strlen(source), 80, 24, capture, NULL, NULL, &output, &free_bytes);
+        (const uint8_t *)source, strlen(source), 80, 24, capture, NULL, NULL, NULL, &output, &free_bytes);
     if (status != expected_status || output.overflow ||
         strstr(output.bytes, expected_output) == NULL ||
         free_bytes == 0 || free_bytes > 128 * 1024) {
@@ -58,7 +58,7 @@ static int check_terminal_controls(void) {
     struct captured_output output = {0};
     size_t free_bytes = 0;
     int status = pocketgen_micropython_run((const uint8_t *)source, strlen(source),
-        80, 24, capture, NULL, NULL, &output, &free_bytes);
+        80, 24, capture, NULL, NULL, NULL, &output, &free_bytes);
     if (status != 0 || output.overflow || strcmp(output.bytes, expected) != 0 || free_bytes == 0) {
         LOG_ERR("Terminal controls failed: status=%d, output=%s", status, output.bytes);
         return -EINVAL;
@@ -71,7 +71,7 @@ static int check_terminal_size(uint16_t cols, uint16_t rows, const char *expecte
     struct captured_output output = {0};
     size_t free_bytes = 0;
     int status = pocketgen_micropython_run((const uint8_t *)source, strlen(source),
-        cols, rows, capture, NULL, NULL, &output, &free_bytes);
+        cols, rows, capture, NULL, NULL, NULL, &output, &free_bytes);
     if (status != 0 || output.overflow || strcmp(output.bytes, expected) != 0) {
         LOG_ERR("Terminal size test failed for %u x %u: %s", cols, rows, output.bytes);
         return -EINVAL;
@@ -120,7 +120,7 @@ static int check_live_execution(void) {
     size_t free_bytes = 0;
     int64_t start = k_uptime_get();
     int status = pocketgen_micropython_run((const uint8_t *)source, strlen(source),
-        80, 24, capture, observe_frame, NULL, &observed, &free_bytes);
+        80, 24, capture, observe_frame, NULL, NULL, &observed, &free_bytes);
     if (status != 0 || !observed.first_frame || !observed.second_frame ||
         strstr(observed.output.bytes, "done") == NULL || k_uptime_get() - start < 40) {
         LOG_ERR("Live frame or sleep test failed");
@@ -129,7 +129,7 @@ static int check_live_execution(void) {
     struct captured_output output = {0};
     const char *loop = "while True:\n pass\n";
     status = pocketgen_micropython_run((const uint8_t *)loop, strlen(loop),
-        80, 24, capture, interrupt_run, NULL, &output, &free_bytes);
+        80, 24, capture, interrupt_run, NULL, NULL, &output, &free_bytes);
     if (status != 1 || strstr(output.bytes, "KeyboardInterrupt") == NULL) {
         LOG_ERR("Tight-loop interrupt test failed");
         return -EINVAL;
@@ -137,7 +137,7 @@ static int check_live_execution(void) {
     memset(&output, 0, sizeof(output));
     const char *sleep = "from pocketgen import sleep_ms\nsleep_ms(1000)\nprint('should-not-run')\n";
     status = pocketgen_micropython_run((const uint8_t *)sleep, strlen(sleep),
-        80, 24, capture, interrupt_run, NULL, &output, &free_bytes);
+        80, 24, capture, interrupt_run, NULL, NULL, &output, &free_bytes);
     if (status != 1 || strstr(output.bytes, "KeyboardInterrupt") == NULL ||
         strstr(output.bytes, "should-not-run") != NULL) {
         LOG_ERR("Sleep interrupt test failed");
@@ -146,7 +146,7 @@ static int check_live_execution(void) {
     memset(&output, 0, sizeof(output));
     const char *refresh = "from pocketgen import refresh\nrefresh()\n";
     status = pocketgen_micropython_run((const uint8_t *)refresh, strlen(refresh),
-        80, 24, capture, fail_progress, NULL, &output, &free_bytes);
+        80, 24, capture, fail_progress, NULL, NULL, &output, &free_bytes);
     if (status != 1 || strstr(output.bytes, "OSError") == NULL) {
         LOG_ERR("Display failure propagation test failed");
         return -EINVAL;
@@ -158,11 +158,11 @@ int pocketgen_test_micropython(void) {
     struct captured_output output = {0};
     size_t free_bytes = 1;
     if (strcmp(pocketgen_micropython_version(), MICROPY_VERSION_STRING) != 0 ||
-        pocketgen_micropython_run(NULL, 0, 80, 24, capture, NULL, NULL, &output, &free_bytes) != -EINVAL ||
-        pocketgen_micropython_run((const uint8_t *)"", 0, 0, 24, capture, NULL, NULL, &output, &free_bytes) != -EINVAL ||
-        pocketgen_micropython_run((const uint8_t *)"", 0, 80, 0, capture, NULL, NULL, &output, &free_bytes) != -EINVAL ||
-        pocketgen_micropython_run((const uint8_t *)"", 0, 80, 24, NULL, NULL, NULL, NULL, &free_bytes) != -EINVAL ||
-        pocketgen_micropython_run((const uint8_t *)"", 0, 80, 24, capture, NULL, NULL, &output, NULL) != -EINVAL ||
+        pocketgen_micropython_run(NULL, 0, 80, 24, capture, NULL, NULL, NULL, &output, &free_bytes) != -EINVAL ||
+        pocketgen_micropython_run((const uint8_t *)"", 0, 0, 24, capture, NULL, NULL, NULL, &output, &free_bytes) != -EINVAL ||
+        pocketgen_micropython_run((const uint8_t *)"", 0, 80, 0, capture, NULL, NULL, NULL, &output, &free_bytes) != -EINVAL ||
+        pocketgen_micropython_run((const uint8_t *)"", 0, 80, 24, NULL, NULL, NULL, NULL, NULL, &free_bytes) != -EINVAL ||
+        pocketgen_micropython_run((const uint8_t *)"", 0, 80, 24, capture, NULL, NULL, NULL, &output, NULL) != -EINVAL ||
         free_bytes != 1 ||
         check_live_execution() != 0 ||
         check_terminal_controls() != 0 ||
@@ -179,6 +179,7 @@ int pocketgen_test_micropython(void) {
         check("from pocketgen import color\ncolor('red')\n", 1, "TypeError") != 0 ||
         check("from pocketgen import sleep_ms\nsleep_ms(-1)\n", 1, "ValueError") != 0 ||
         check("from pocketgen import sleep_ms\nsleep_ms('x')\n", 1, "TypeError") != 0 ||
+        check("from pocketgen import getkey\ngetkey()\n", 1, "OSError") != 0 ||
         check("from pocketgen import ticks_ms, ticks_diff, sleep_ms\n"
               "start = ticks_ms()\nsleep_ms(20)\n"
               "assert ticks_diff(ticks_ms(), start) >= 20\n"
@@ -235,9 +236,9 @@ int pocketgen_test_micropython(void) {
     size_t baseline_free = 0;
     size_t allocated_free = 0;
     int baseline_status = pocketgen_micropython_run((const uint8_t *)baseline, strlen(baseline),
-        80, 24, capture, NULL, NULL, &output, &baseline_free);
+        80, 24, capture, NULL, NULL, NULL, &output, &baseline_free);
     int allocated_status = pocketgen_micropython_run((const uint8_t *)allocated, strlen(allocated),
-        80, 24, capture, NULL, NULL, &output, &allocated_free);
+        80, 24, capture, NULL, NULL, NULL, &output, &allocated_free);
     if (baseline_status != 0 || allocated_status != 0 ||
         baseline_free <= allocated_free || baseline_free - allocated_free < 7000) {
         LOG_ERR("GC allocation test: status=%d/%d free=%zu/%zu output=%s",

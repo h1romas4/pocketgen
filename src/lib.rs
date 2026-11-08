@@ -137,6 +137,11 @@ fn apply_input(
             info!("Loaded numeric RC demo");
             return true;
         }
+        Key::DemoSnake => {
+            editor.replace_all(include_str!("../examples/snake.py"));
+            info!("Loaded snake demo");
+            return true;
+        }
         _ => {}
     }
     if key != Key::Run {
@@ -238,7 +243,6 @@ fn process_key(
         height,
         bar_height,
         error: 0,
-        ignored_input: false,
         self_test,
     };
     let result = apply_input(
@@ -509,7 +513,6 @@ extern "C" fn rust_main() {
             height,
             bar_height,
             error: 0,
-            ignored_input: false,
             self_test: true,
         };
         let result = execute(&test_editor, &mut right, Some(&mut live));

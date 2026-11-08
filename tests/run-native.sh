@@ -12,6 +12,8 @@ python3 tests/mexican_hat_graphics_demo_test.py
 python3 tests/plot_test.py
 python3 tests/chart_test.py
 python3 tests/numeric_test.py
+python3 tests/tile_test.py
+python3 tests/snake_demo_test.py
 cargo test --manifest-path components/pocketgen-editor/Cargo.toml \
     --target-dir build/editor-tests --test syntax
 

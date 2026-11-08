@@ -2,7 +2,7 @@
 
 use core::ffi::c_void;
 use log::{info, warn};
-use pocketgen_editor::Editor;
+use pocketgen_editor::{Decoder, Editor, Key};
 use pocketgen_terminal::{process_output, vt100, TerminalRenderer};
 
 use crate::output_pane::OutputPane;
@@ -17,9 +17,11 @@ extern "C" {
         callback: extern "C" fn(*mut c_void, *const u8, usize),
         progress: Option<extern "C" fn(*mut c_void, bool) -> i32>,
         graphics: Option<extern "C" fn(*mut c_void, u32, i32, i32, i32, i32, u32) -> i32>,
+        key: Option<extern "C" fn(*mut c_void, *mut u8, usize) -> i32>,
         context: *mut c_void,
         free_bytes: *mut usize,
     ) -> i32;
+    fn pocketgen_input_ticks_ms() -> u32;
 }
 
 pub(crate) struct LiveDisplay<'a> {
@@ -30,14 +32,131 @@ pub(crate) struct LiveDisplay<'a> {
     pub(crate) height: u16,
     pub(crate) bar_height: u16,
     pub(crate) error: i32,
-    pub(crate) ignored_input: bool,
     pub(crate) self_test: bool,
+}
+
+struct KeyInput {
+    decoder: Decoder,
+    queue: [Option<Key>; 64],
+    head: usize,
+    len: usize,
+    last_byte: u32,
+    enabled: bool,
+    overflow: bool,
+    ignored: bool,
+}
+
+impl Default for KeyInput {
+    fn default() -> Self {
+        Self {
+            decoder: Decoder::default(),
+            queue: [None; 64],
+            head: 0,
+            len: 0,
+            last_byte: 0,
+            enabled: false,
+            overflow: false,
+            ignored: false,
+        }
+    }
+}
+
+impl KeyInput {
+    fn push(&mut self, key: Key) {
+        if self.len == self.queue.len() {
+            if !self.overflow {
+                warn!("MicroPython key input queue overflow");
+                self.overflow = true;
+            }
+        } else {
+            self.queue[(self.head + self.len) % self.queue.len()] = Some(key);
+            self.len += 1;
+        }
+    }
+
+    fn accept(&mut self, result: Result<Option<Key>, pocketgen_editor::InputError>) {
+        match result {
+            Ok(Some(key)) => self.push(key),
+            Ok(None) => {}
+            Err(error) => warn!("Invalid input: {:?}", error),
+        }
+    }
+
+    fn feed(&mut self, byte: u8, now: u32) {
+        if let Some(key) = self.decoder.escape_before(byte) {
+            self.push(key);
+        }
+        let result = self.decoder.feed(byte);
+        if matches!(result, Ok(None)) && !self.decoder.pending() && byte < 0x20 && byte != b'\n' {
+            warn!("Unsupported MicroPython control byte: {:#04x}", byte);
+        }
+        self.accept(result);
+        self.last_byte = now;
+    }
+
+    fn expire(&mut self, now: u32) {
+        let timeout = if self.decoder.pending_escape() { 50 } else { 500 };
+        if self.decoder.pending() && now.wrapping_sub(self.last_byte) >= timeout {
+            let result = self.decoder.timeout();
+            self.accept(result);
+        }
+    }
+
+    fn pop(&mut self) -> Option<Key> {
+        if self.len == 0 {
+            return None;
+        }
+        let key = self.queue[self.head].take();
+        self.head = (self.head + 1) % self.queue.len();
+        self.len -= 1;
+        key
+    }
 }
 
 struct PythonOutput<'a, 'b, 'c> {
     parser: &'a mut vt100::Parser,
     live: Option<&'b mut LiveDisplay<'c>>,
     dirty: bool,
+    keys: KeyInput,
+}
+
+extern "C" fn python_key(context: *mut c_void, buffer: *mut u8, capacity: usize) -> i32 {
+    let output = unsafe { &mut *context.cast::<PythonOutput<'_, '_, '_>>() };
+    output.keys.enabled = true;
+    if output.keys.overflow {
+        output.keys.overflow = false;
+        return -105; // ENOBUFS
+    }
+    while let Some(key) = output.keys.pop() {
+        let mut encoded = [0; 4];
+        let value = match key {
+            Key::Character('\t') => "TAB",
+            Key::Character(ch) => ch.encode_utf8(&mut encoded),
+            Key::Up => "UP",
+            Key::Down => "DOWN",
+            Key::Left => "LEFT",
+            Key::Right => "RIGHT",
+            Key::Enter => "ENTER",
+            Key::Escape => "ESC",
+            Key::Backspace => "BACKSPACE",
+            Key::Delete => "DELETE",
+            Key::Home => "HOME",
+            Key::End => "END",
+            Key::PageUp => "PAGEUP",
+            Key::PageDown => "PAGEDOWN",
+            _ => {
+                warn!("Unsupported MicroPython key: {:?}", key);
+                continue;
+            }
+        };
+        if value.len() > capacity {
+            return -22;
+        }
+        let target = unsafe { core::slice::from_raw_parts_mut(buffer, value.len()) };
+        target.copy_from_slice(value.as_bytes());
+        return value.len() as i32;
+    }
+    0
 }
 
 extern "C" fn python_output(context: *mut c_void, bytes: *const u8, len: usize) {
@@ -101,10 +220,15 @@ extern "C" fn python_progress(context: *mut c_void, refresh: bool) -> i32 {
             }
             continue;
         }
-        if !live.ignored_input {
+        if output.keys.enabled {
+            output.keys.feed(byte, unsafe { pocketgen_input_ticks_ms() });
+        } else if !output.keys.ignored {
             warn!("Input other than Ctrl+C and Ctrl+G is ignored while MicroPython runs");
-            live.ignored_input = true;
+            output.keys.ignored = true;
         }
+    }
+    if output.keys.enabled {
+        output.keys.expire(unsafe { pocketgen_input_ticks_ms() });
     }
     if refresh && output.dirty {
         let right_x = live.width / 2;
@@ -153,6 +277,7 @@ pub(crate) fn execute(
         parser: right,
         live,
         dirty: true,
+        keys: KeyInput::default(),
     };
     let progress = output
         .live
@@ -167,6 +292,7 @@ pub(crate) fn execute(
             python_output,
             progress,
             Some(python_graphics),
+            progress.map(|_| python_key as extern "C" fn(*mut c_void, *mut u8, usize) -> i32),
             (&mut output as *mut PythonOutput<'_, '_, '_>).cast(),
             &mut free_bytes,
         )

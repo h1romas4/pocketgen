@@ -28,6 +28,7 @@ static union {
 static pocketgen_output_callback_t output_callback;
 static pocketgen_progress_callback_t progress_callback;
 static pocketgen_graphics_callback_t graphics_callback;
+static pocketgen_key_callback_t key_callback;
 static void *output_context;
 static uint16_t terminal_cols;
 static uint16_t terminal_rows;
@@ -133,6 +134,30 @@ static mp_obj_t pocketgen_refresh(void) {
     return mp_const_none;
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(pocketgen_refresh_obj, pocketgen_refresh);
+
+static mp_obj_t pocketgen_getkey(void) {
+    if (key_callback == NULL) {
+        mp_raise_OSError(ENODEV);
+    }
+    uint8_t key[24];
+    int length = key_callback(output_context, key, sizeof(key));
+    if (length < 0) {
+        mp_raise_OSError(-length);
+    }
+    pocketgen_check_events(false);
+    mp_handle_pending(MP_HANDLE_PENDING_CALLBACKS_AND_EXCEPTIONS);
+    if (length == 0) {
+        length = key_callback(output_context, key, sizeof(key));
+        if (length < 0) {
+            mp_raise_OSError(-length);
+        }
+    }
+    if ((size_t)length > sizeof(key)) {
+        mp_raise_OSError(EIO);
+    }
+    return length == 0 ? mp_const_none : mp_obj_new_str((const char *)key, (size_t)length);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(pocketgen_getkey_obj, pocketgen_getkey);
 
 static mp_obj_t pocketgen_sleep_ms(mp_obj_t ms_obj) {
     mp_int_t remaining = mp_obj_get_int(ms_obj);
@@ -276,6 +301,11 @@ static mp_obj_t pocketgen_plot_position(size_t n_args, const mp_obj_t *args, mp_
 }
 static MP_DEFINE_CONST_FUN_OBJ_KW(pocketgen_plot_position_obj, 0, pocketgen_plot_position);
 
+static mp_obj_t pocketgen_graphics_tile(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    return pocketgen_python_call(MP_QSTR_pocketgen_tiles, MP_QSTR_graphics_tile, n_args, args, kw_args);
+}
+static MP_DEFINE_CONST_FUN_OBJ_KW(pocketgen_graphics_tile_obj, 0, pocketgen_graphics_tile);
+
 static mp_obj_t pocketgen_scatter(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
     return pocketgen_python_call(MP_QSTR_pocketgen_charts, MP_QSTR_scatter, n_args, args, kw_args);
 }
@@ -323,6 +353,7 @@ static const mp_rom_map_elem_t pocketgen_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_locate), MP_ROM_PTR(&pocketgen_locate_obj) },
     { MP_ROM_QSTR(MP_QSTR_color), MP_ROM_PTR(&pocketgen_color_obj) },
     { MP_ROM_QSTR(MP_QSTR_refresh), MP_ROM_PTR(&pocketgen_refresh_obj) },
+    { MP_ROM_QSTR(MP_QSTR_getkey), MP_ROM_PTR(&pocketgen_getkey_obj) },
     { MP_ROM_QSTR(MP_QSTR_sleep_ms), MP_ROM_PTR(&pocketgen_sleep_ms_obj) },
     { MP_ROM_QSTR(MP_QSTR_ticks_ms), MP_ROM_PTR(&pocketgen_ticks_ms_obj) },
     { MP_ROM_QSTR(MP_QSTR_ticks_diff), MP_ROM_PTR(&pocketgen_ticks_diff_obj) },
@@ -330,6 +361,7 @@ static const mp_rom_map_elem_t pocketgen_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_graphics_clear), MP_ROM_PTR(&pocketgen_graphics_clear_obj) },
     { MP_ROM_QSTR(MP_QSTR_graphics_pixel), MP_ROM_PTR(&pocketgen_graphics_pixel_obj) },
     { MP_ROM_QSTR(MP_QSTR_graphics_line), MP_ROM_PTR(&pocketgen_graphics_line_obj) },
+    { MP_ROM_QSTR(MP_QSTR_graphics_tile), MP_ROM_PTR(&pocketgen_graphics_tile_obj) },
     { MP_ROM_QSTR(MP_QSTR_graphics_show), MP_ROM_PTR(&pocketgen_graphics_show_obj) },
     { MP_ROM_QSTR(MP_QSTR_plot), MP_ROM_PTR(&pocketgen_plot_obj) },
     { MP_ROM_QSTR(MP_QSTR_plot_position), MP_ROM_PTR(&pocketgen_plot_position_obj) },
@@ -353,6 +385,7 @@ MP_REGISTER_MODULE(MP_QSTR_pocketgen, pocketgen_module);
 int pocketgen_micropython_run(const uint8_t *source, size_t len,
     uint16_t cols, uint16_t rows, pocketgen_output_callback_t callback,
     pocketgen_progress_callback_t progress, pocketgen_graphics_callback_t graphics,
+    pocketgen_key_callback_t key,
     void *context, size_t *free_bytes) {
     if (source == NULL || cols == 0 || rows == 0 || callback == NULL ||
         free_bytes == NULL || output_callback != NULL) {
@@ -362,6 +395,7 @@ int pocketgen_micropython_run(const uint8_t *source, size_t len,
     output_callback = callback;
     progress_callback = progress;
     graphics_callback = graphics;
+    key_callback = key;
     output_context = context;
     terminal_cols = cols;
     terminal_rows = rows;
@@ -393,6 +427,7 @@ int pocketgen_micropython_run(const uint8_t *source, size_t len,
     output_callback = NULL;
     progress_callback = NULL;
     graphics_callback = NULL;
+    key_callback = NULL;
     output_context = NULL;
     return result;
 }

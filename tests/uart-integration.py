@@ -204,9 +204,9 @@ try:
     wait_for(b"Output view: graphics", start)
     print(f"Graphics Mexican hat demo menu, drawing, and view toggle passed ({mode})")
 
-    for name, up_count in ((b"plot trig", 8), (b"plot projectile", 7), (b"plot growth", 6),
-                           (b"chart scatter", 5), (b"chart histogram", 4),
-                           (b"chart bar", 3), (b"chart pie", 2), (b"numeric RC", 1)):
+    for name, up_count in ((b"plot trig", 9), (b"plot projectile", 8), (b"plot growth", 7),
+                           (b"chart scatter", 6), (b"chart histogram", 5),
+                           (b"chart bar", 4), (b"chart pie", 3), (b"numeric RC", 2)):
         start = len(output)
         os.write(serial_fd, b"\x1b[21~" + b"\x1b[A" * up_count + b"\r")
         wait_for(b"Loaded " + name + b" demo", start)
@@ -219,6 +219,81 @@ try:
         os.write(serial_fd, b"\x07")
         wait_for(b"Output view: graphics", start)
     print(f"Plot, chart and numeric demo menu, execution, and view toggle passed ({mode})")
+
+    start = len(output)
+    os.write(serial_fd, b"\x1b[21~\x1b[A\r")
+    wait_for(b"Loaded snake demo", start)
+    os.write(serial_fd, b"\x12")
+    wait_for(b"Live output frame presented", start)
+    time.sleep(0.5)
+    os.write(serial_fd, b"\x1b[A")
+    time.sleep(0.2)
+    os.write(serial_fd, b"q")
+    wait_for(b"MicroPython execution completed", start)
+    start = len(output)
+    os.write(serial_fd, b"\x12")
+    wait_for(b"Live output frame presented", start)
+    time.sleep(0.3)
+    os.write(serial_fd, b"\x03")
+    wait_for(b"MicroPython execution interrupted", start)
+    print(f"Snake demo input, exit and interruption passed ({mode})")
+
+    start = len(output)
+    replace_and_run(
+        "from pocketgen import getkey,sleep_ms\r"
+        "assert getkey() is None\r"
+        "print('key-ready')\r"
+        "keys=[]\r"
+        "while len(keys)<8:\r"
+        " k=getkey()\r"
+        " if k is not None: keys.append(k)\r"
+        " sleep_ms(5)\r"
+        "assert keys==['a','UP','日','ENTER','ESC','x','DOWN','ESC'], keys\r"
+        "print('key-ok')\r".encode("utf-8")
+    )
+    wait_for(b"Live output frame presented", start)
+    os.write(serial_fd, b"a\x07\x1b[")
+    if not via_screen:
+        time.sleep(0.015)
+    os.write(serial_fd, b"A\x04")
+    encoded = "日".encode("utf-8")
+    if via_screen:
+        os.write(serial_fd, encoded)
+    else:
+        for byte in encoded:
+            os.write(serial_fd, bytes([byte]))
+            time.sleep(0.01)
+    os.write(serial_fd, b"\r\x1bx\x1b[B")
+    os.write(serial_fd, b"\x1b")
+    time.sleep(2 if via_screen else 0.12)
+    wait_for(b"MicroPython execution completed", start, timeout=20)
+    wait_for(b"Unsupported MicroPython control byte: 0x04", start)
+    print(f"Nonblocking keys, Unicode, arrows, Escape and Ctrl+G passed ({mode})")
+
+    start = len(output)
+    replace_and_run(
+        b"from pocketgen import getkey,sleep_ms\r"
+        b"assert getkey() is None\r"
+        b"print('overflow-ready')\r"
+        b"sleep_ms(1500)\r"
+        b"try:\r"
+        b" getkey()\r"
+        b" raise RuntimeError('overflow not reported')\r"
+        b"except OSError as error:\r"
+        b" assert error.errno==105\r"
+        b"assert getkey()=='x'\r"
+        b"print('overflow-ok')\r"
+    )
+    wait_for(b"Live output frame presented", start)
+    os.write(serial_fd, b"x" * 100)
+    wait_for(b"MicroPython execution completed", start, timeout=20)
+    wait_for(b"MicroPython key input queue overflow", start)
+    print(f"Key input overflow reporting passed ({mode})")
+
+    start = len(output)
+    replace_and_run(b"from pocketgen import getkey\rassert getkey() is None\rprint('clean')\r")
+    wait_for(b"MicroPython execution completed", start)
+    print(f"Key input reset between runs passed ({mode})")
 
     start = len(output)
     replace_and_run(
