@@ -152,6 +152,27 @@ static mp_obj_t pocketgen_sleep_ms(mp_obj_t ms_obj) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_1(pocketgen_sleep_ms_obj, pocketgen_sleep_ms);
 
+#define POCKETGEN_TICKS_PERIOD (UINT32_C(1) << 30)
+
+static mp_obj_t pocketgen_ticks_ms(void) {
+    uint32_t ticks = k_uptime_get_32() & (POCKETGEN_TICKS_PERIOD - 1);
+    return MP_OBJ_NEW_SMALL_INT(ticks);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(pocketgen_ticks_ms_obj, pocketgen_ticks_ms);
+
+static mp_obj_t pocketgen_ticks_diff(mp_obj_t end_obj, mp_obj_t start_obj) {
+    mp_int_t end = mp_obj_get_int(end_obj);
+    mp_int_t start = mp_obj_get_int(start_obj);
+    if (end < 0 || start < 0 || end >= (mp_int_t)POCKETGEN_TICKS_PERIOD ||
+        start >= (mp_int_t)POCKETGEN_TICKS_PERIOD) {
+        mp_raise_ValueError(MP_ERROR_TEXT("ticks out of range"));
+    }
+    uint32_t diff = ((uint32_t)end - (uint32_t)start + POCKETGEN_TICKS_PERIOD / 2)
+        & (POCKETGEN_TICKS_PERIOD - 1);
+    return mp_obj_new_int((mp_int_t)diff - (mp_int_t)(POCKETGEN_TICKS_PERIOD / 2));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(pocketgen_ticks_diff_obj, pocketgen_ticks_diff);
+
 static int graphics_command(uint32_t command, int32_t x0, int32_t y0,
     int32_t x1, int32_t y1, uint32_t color) {
     if (graphics_callback == NULL) {
@@ -230,6 +251,8 @@ static const mp_rom_map_elem_t pocketgen_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_color), MP_ROM_PTR(&pocketgen_color_obj) },
     { MP_ROM_QSTR(MP_QSTR_refresh), MP_ROM_PTR(&pocketgen_refresh_obj) },
     { MP_ROM_QSTR(MP_QSTR_sleep_ms), MP_ROM_PTR(&pocketgen_sleep_ms_obj) },
+    { MP_ROM_QSTR(MP_QSTR_ticks_ms), MP_ROM_PTR(&pocketgen_ticks_ms_obj) },
+    { MP_ROM_QSTR(MP_QSTR_ticks_diff), MP_ROM_PTR(&pocketgen_ticks_diff_obj) },
     { MP_ROM_QSTR(MP_QSTR_graphics_size), MP_ROM_PTR(&pocketgen_graphics_size_obj) },
     { MP_ROM_QSTR(MP_QSTR_graphics_clear), MP_ROM_PTR(&pocketgen_graphics_clear_obj) },
     { MP_ROM_QSTR(MP_QSTR_graphics_pixel), MP_ROM_PTR(&pocketgen_graphics_pixel_obj) },

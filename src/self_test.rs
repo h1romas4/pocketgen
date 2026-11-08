@@ -222,6 +222,12 @@ pub(crate) fn test_graphics(
         );
         return false;
     }
+    if !parser.screen().contents().contains("Mexican Hat:")
+        || !parser.screen().contents().contains(" ms")
+    {
+        log::error!("Graphics Mexican hat timing is missing");
+        return false;
+    }
     pixels.fill(0);
     pane.render(parser, renderer, pixels, width, x, bar_height);
     let graphic_pixels =
@@ -517,6 +523,7 @@ pub(crate) fn test_selection_and_menu(size: Size) -> bool {
         return false;
     }
     menu.handle(Key::Menu);
+    menu.handle(Key::Right);
     menu.handle(Key::Down);
     menu.handle(Key::Down);
     viewport.render(
@@ -561,7 +568,7 @@ pub(crate) fn test_demo_loading(size: Size, footer_size: Size) -> bool {
     };
     let mut editor = Editor::new("unsaved\n");
     let mut menu = Menu::default();
-    for key in [Key::Menu, Key::Left, Key::Down, Key::Enter] {
+    for key in [Key::Menu, Key::Down, Key::Enter] {
         if !apply_input(
             key,
             &mut menu,
@@ -585,7 +592,7 @@ pub(crate) fn test_demo_loading(size: Size, footer_size: Size) -> bool {
     if editor.text() != "unsaved\n" {
         return false;
     }
-    for key in [Key::Menu, Key::Left, Key::Enter] {
+    for key in [Key::Menu, Key::Enter] {
         if !apply_input(
             key,
             &mut menu,
@@ -605,7 +612,7 @@ pub(crate) fn test_demo_loading(size: Size, footer_size: Size) -> bool {
     {
         return false;
     }
-    for key in [Key::Menu, Key::Left, Key::Down, Key::Down, Key::Enter] {
+    for key in [Key::Menu, Key::Down, Key::Down, Key::Enter] {
         if !apply_input(
             key,
             &mut menu,
@@ -625,7 +632,7 @@ pub(crate) fn test_demo_loading(size: Size, footer_size: Size) -> bool {
     {
         return false;
     }
-    for key in [Key::Menu, Key::Left, Key::Up, Key::Up, Key::Up, Key::Enter] {
+    for key in [Key::Menu, Key::Up, Key::Up, Key::Up, Key::Enter] {
         if !apply_input(
             key,
             &mut menu,
@@ -645,7 +652,7 @@ pub(crate) fn test_demo_loading(size: Size, footer_size: Size) -> bool {
     {
         return false;
     }
-    for key in [Key::Menu, Key::Left, Key::Up, Key::Up, Key::Enter] {
+    for key in [Key::Menu, Key::Up, Key::Up, Key::Enter] {
         if !apply_input(
             key,
             &mut menu,
@@ -665,7 +672,7 @@ pub(crate) fn test_demo_loading(size: Size, footer_size: Size) -> bool {
     {
         return false;
     }
-    for key in [Key::Menu, Key::Left, Key::Up, Key::Enter] {
+    for key in [Key::Menu, Key::Up, Key::Enter] {
         if !apply_input(
             key,
             &mut menu,

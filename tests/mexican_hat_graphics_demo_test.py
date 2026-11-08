@@ -15,7 +15,8 @@ class Graphics:
         self.height = height
         self.pixels = [[0] * width for _ in range(height)]
         self.frames = []
-        self.delays = []
+        self.events = []
+        self.ticks = iter((1073741820, 3))
 
     def graphics_size(self):
         return self.width, self.height
@@ -32,21 +33,32 @@ class Graphics:
 
     def refresh(self):
         self.frames.append(sum(pixel != 0 for row in self.pixels for pixel in row))
+        self.events.append("refresh")
 
-    def sleep_ms(self, delay):
-        if delay < 0:
-            raise AssertionError("negative delay")
-        self.delays.append(delay)
+    def graphics_show(self):
+        self.events.append("graphics_show")
+
+    def ticks_ms(self):
+        self.events.append("ticks_ms")
+        return next(self.ticks)
+
+    def ticks_diff(self, end, start):
+        self.events.append("ticks_diff")
+        return ((end - start + (1 << 29)) % (1 << 30)) - (1 << 29)
+
+    def print(self, text):
+        self.events.append(text)
 
 
 def load_demo(graphics):
     module = types.ModuleType("pocketgen")
-    for name in ("graphics_size", "graphics_clear", "graphics_pixel", "refresh", "sleep_ms"):
+    for name in ("graphics_size", "graphics_clear", "graphics_pixel", "graphics_show",
+                 "refresh", "ticks_ms", "ticks_diff"):
         setattr(module, name, getattr(graphics, name))
     source = SOURCE.read_text()
     if not source.endswith(ENTRY):
         raise AssertionError("demo entry point changed")
-    namespace = {}
+    namespace = {"print": graphics.print}
     with patch.dict(sys.modules, {"pocketgen": module}):
         exec(compile(source[:-len(ENTRY)], str(SOURCE), "exec"), namespace)
     return namespace
@@ -64,9 +76,8 @@ class MexicanHatGraphicsDemoTests(unittest.TestCase):
                 z = demo["surface"](0, 0)
                 self.assertEqual(demo["project"](0, 0, z, 160, 100), (80, 23))
                 self.assertEqual(demo["project"](0, 60, z, 160, 100), (70, 13))
-                demo["run_demo"](0, 0)
-                self.assertEqual(len(graphics.frames), 21)
-                self.assertEqual(graphics.frames, sorted(graphics.frames))
+                demo["run_demo"]()
+                self.assertEqual(len(graphics.frames), 1)
                 self.assertGreater(graphics.frames[-1], width)
                 self.assertGreaterEqual(len({p for row in graphics.pixels for p in row} - {0}), 4)
 
@@ -84,7 +95,7 @@ class MexicanHatGraphicsDemoTests(unittest.TestCase):
 
     def test_partial_and_small_displays(self):
         graphics = Graphics(80, 48)
-        load_demo(graphics)["run_demo"](3, 0)
+        load_demo(graphics)["run_demo"](3)
         self.assertEqual(len(graphics.frames), 1)
         for size in ((23, 12), (24, 11)):
             with self.subTest(size=size):
@@ -93,20 +104,13 @@ class MexicanHatGraphicsDemoTests(unittest.TestCase):
                     load_demo(graphics)["run_demo"]()
                 self.assertFalse(graphics.frames)
 
-    def test_default_delay_and_optional_wait(self):
-        default = Graphics(80, 48)
-        load_demo(default)["run_demo"]()
-        immediate = Graphics(80, 48)
-        load_demo(immediate)["run_demo"](delay=0)
-        delayed = Graphics(80, 48)
-        load_demo(delayed)["run_demo"](delay=7)
-        self.assertEqual(default.delays, [])
-        self.assertEqual(immediate.delays, [])
-        self.assertEqual(delayed.delays, [7] * 21)
-        self.assertEqual(default.frames, immediate.frames)
-        self.assertEqual(default.frames, delayed.frames)
-        self.assertEqual(default.pixels, immediate.pixels)
-        self.assertEqual(default.pixels, delayed.pixels)
+    def test_elapsed_time_and_graphics_view(self):
+        graphics = Graphics(80, 48)
+        load_demo(graphics)["run_demo"]()
+        self.assertEqual(graphics.events, [
+            "ticks_ms", "refresh", "ticks_ms", "ticks_diff",
+            "Mexican Hat: 7 ms", "graphics_show",
+        ])
 
     def test_horizon_hides_lower_lines_and_clips_to_graph(self):
         graphics = Graphics(16, 12)

@@ -179,6 +179,15 @@ int pocketgen_test_micropython(void) {
         check("from pocketgen import color\ncolor('red')\n", 1, "TypeError") != 0 ||
         check("from pocketgen import sleep_ms\nsleep_ms(-1)\n", 1, "ValueError") != 0 ||
         check("from pocketgen import sleep_ms\nsleep_ms('x')\n", 1, "TypeError") != 0 ||
+        check("from pocketgen import ticks_ms, ticks_diff, sleep_ms\n"
+              "start = ticks_ms()\nsleep_ms(20)\n"
+              "assert ticks_diff(ticks_ms(), start) >= 20\n"
+              "assert ticks_diff(2, 1073741821) == 5\n"
+              "assert ticks_diff(1073741821, 2) == -5\n"
+              "assert ticks_diff(536870912, 0) == -536870912\n"
+              "print('ticks-ok')\n", 0, "ticks-ok") != 0 ||
+        check("from pocketgen import ticks_diff\nticks_diff(-1, 0)\n", 1, "ValueError") != 0 ||
+        check("from pocketgen import ticks_diff\nticks_diff('x', 0)\n", 1, "TypeError") != 0 ||
         check("print('hello', 2 + 3)\n", 0, "hello 5\n") != 0 ||
         check("assert abs(1.5 + 2.25 - 3.75) < 1e-12\nprint('float-ok')\n", 0, "float-ok") != 0 ||
         check("import math\nassert abs(math.sin(math.pi / 2) - 1.0) < 1e-12\n"

@@ -59,7 +59,7 @@ try:
     os.write(serial_fd, b"\x03")
     wait_for(lambda data: b"MicroPython execution interrupted" in data[start:])
     start = len(output)
-    os.write(serial_fd, b"\x1b[21~\x1b[A\r\x7fprint('recovered')\r\x12")
+    os.write(serial_fd, b"\x1b[21~\x1b[C\x1b[A\r\x7fprint('recovered')\r\x12")
     wait_for(lambda data: b"MicroPython execution completed" in data[start:])
     if b"<err>" in output:
         raise RuntimeError("simulator reported an error")

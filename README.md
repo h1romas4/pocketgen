@@ -103,13 +103,16 @@ search, leaving the match selected. The query is limited to 256 UTF-8 bytes.
 MicroPython supports double-precision floating-point numbers and the `math`
 module, including `sin`, `cos`, `sqrt`, and `pi`. Select **Demo → Sine Graph**
 or **Demo → Hat (Graphics)** and press **Ctrl+R** to run a pixel graphics
-example. The latter draws a Mexican hat surface progressively; the original
+example. The latter draws a Mexican hat surface as a benchmark; the original
 text-mode **Mexican Hat** demo remains available. The graphics version follows
 the classic cosine surface, projection, and height-based colors, connecting
 sampled points with lines projected at the output pane's pixel resolution.
-The hat demo defaults to no added delay; its `delay` parameter can be set in
-milliseconds to slow the progressive drawing. Loading a demo replaces the
-editor buffer; use **Ctrl+Z** to undo.
+The benchmark prints its elapsed time to the retained terminal and shows the
+finished graphics; press **Ctrl+G** to see the timing. It measures elapsed
+wall-clock time from buffer initialization through the final `refresh()` call,
+including intermediate display updates and the VM's periodic 1 ms scheduling
+waits. It does not measure final physical display scanout. Loading a demo
+replaces the editor buffer; use **Ctrl+Z** to undo.
 
 The `pocketgen` module provides these right-pane graphics primitives:
 
@@ -121,6 +124,8 @@ The `pocketgen` module provides these right-pane graphics primitives:
 | `graphics_line(x0, y0, x1, y1, color)` | Draw a line including both endpoints. |
 | `graphics_show()` | Show the retained graphics in automatic mode. |
 | `refresh()` | Present pending changes during a running script. |
+| `ticks_ms()` | Return a monotonic millisecond counter. |
+| `ticks_diff(end, start)` | Return the wrap-safe difference between two ticks. |
 
 Coordinates start at the top-left and must be within the graphics area; colors
 are RGB565 integers from `0` to `65535`. Call `graphics_clear()` before drawing.
@@ -133,6 +138,11 @@ through editor redraws after a script ends. The graphics buffer uses two bytes
 per pixel and is allocated separately from the 128 KiB MicroPython heap; on
 ESP32-P4 it uses external PSRAM. NumPy-compatible arrays and a high-level plot
 API are not included yet.
+
+`ticks_ms()` wraps every 2^30 milliseconds. `ticks_diff()` returns a signed
+difference and is unambiguous when the interval is less than 2^29 milliseconds.
+These functions belong to `pocketgen`; the standard `time` module is not
+enabled in this minimal MicroPython configuration.
 
 Press **Ctrl+G** to toggle between the retained text and graphics, during or
 after a run. If no graphics have been created, the text view remains visible.
@@ -176,8 +186,9 @@ screen /dev/ttyUSB0 115200
 
 Type in this terminal while watching the LCD. The board configuration starts
 the 3D Cube demo automatically; **Ctrl+C** stops it and returns to the editor.
-Use **Ctrl+R** to run the buffer, **Ctrl+F** to search, and **Ctrl+E** to open
-the menu. `screen`
+Use **Ctrl+R** to run the buffer, **Ctrl+F** to search, and **F10** to open
+the Demo menu. Page Up moves toward the start of the document and Page Down
+moves toward the end. `screen`
 reserves Ctrl+A: to send Ctrl+A to the editor, press **Ctrl+A**, release it,
 then press **A**. To exit `screen` and release the serial port, press
 **Ctrl+A**, then **K**, then **Y**. Ctrl+A followed by D only detaches and

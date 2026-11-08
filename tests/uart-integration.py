@@ -40,7 +40,7 @@ def wait_for(message, start, timeout=10):
 
 
 def replace_and_run(source):
-    os.write(serial_fd, b"\x1b[21~\x1b[A\r\x7f" + source + b"\x12")
+    os.write(serial_fd, b"\x1b[21~\x1b[C\x1b[A\r\x7f" + source + b"\x12")
 
 
 try:
@@ -69,20 +69,20 @@ try:
         if serial_fd is not None and b"Editor input ready on virtual UART" in output:
             os.write(
                 serial_fd,
-                b"\x1b[21~\x1b[A\r\x7f"
+                b"\x1b[21~\x1b[C\x1b[A\r\x7f"
                 b"?\x1a"
-                b"!\x1b[21~\r"
+                b"!\x1b[21~\x1b[C\r"
                 b"print('uart-XY')"
                 b"\x1b[D\x1b[D"
                 b"\x1b[1;2D\x1b[1;2D"
-                b"\x1b[21~\x1b[B\x1b[B\r"
+                b"\x1b[21~\x1b[C\x1b[B\x1b[B\r"
                 b"\x18\x16"
                 b"\x1b[1;2D\x1b[1;2D\x03"
                 b"ok"
                 b"\x1b[1;2D\x1b[1;2D\x16"
                 b"\x1b[1;2D\x1b[1;2D"
                 b"ok\x1b[C\x1b[C\r"
-                b"\x1b[21~\x1b[C\r",
+                b"\x1b[21~\x1b[D\r",
             )
             break
     else:
@@ -160,7 +160,7 @@ try:
                             (b"mexican hat", b"\x1b[A\x1b[A\x1b[A"),
                             (b"maze", b"")):
         start = len(output)
-        os.write(serial_fd, b"\x05\x1b[D" + selection + b"\r")
+        os.write(serial_fd, b"\x1b[21~" + selection + b"\r")
         wait_for(b"Loaded " + name + b" demo", start)
         if b"MicroPython execution started" in output[start:]:
             raise RuntimeError("loading a demo unexpectedly ran it")
@@ -179,7 +179,7 @@ try:
     print(f"Demo menu loading, animation, and interruption passed ({mode})")
 
     start = len(output)
-    os.write(serial_fd, b"\x05\x1b[D\x1b[A\x1b[A\r")
+    os.write(serial_fd, b"\x1b[21~\x1b[A\x1b[A\r")
     wait_for(b"Loaded sine graph demo", start)
     os.write(serial_fd, b"\x12")
     wait_for(b"MicroPython execution completed", start)
@@ -192,16 +192,11 @@ try:
     print(f"Sine graph demo menu and execution passed ({mode})")
 
     start = len(output)
-    os.write(serial_fd, b"\x05\x1b[D\x1b[A\r")
+    os.write(serial_fd, b"\x1b[21~\x1b[A\r")
     wait_for(b"Loaded mexican hat graphics demo", start)
     os.write(serial_fd, b"\x12")
     wait_for(b"MicroPython execution started", start)
-    frame_start = output.index(b"MicroPython execution started", start)
-    for _ in range(3):
-        wait_for(b"Live output frame presented", frame_start)
-        frame_start = output.index(b"Live output frame presented", frame_start) + len(
-            b"Live output frame presented"
-        )
+    wait_for(b"Live output frame presented", start)
     wait_for(b"MicroPython execution completed", start, timeout=30)
     os.write(serial_fd, b"\x07")
     wait_for(b"Output view: text", start)

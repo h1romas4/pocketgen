@@ -1,5 +1,8 @@
 import math
-from pocketgen import graphics_clear, graphics_pixel, graphics_size, refresh, sleep_ms
+from pocketgen import (
+    graphics_clear, graphics_pixel, graphics_show, graphics_size, refresh,
+    ticks_diff, ticks_ms,
+)
 
 
 COLORS = (0x001F, 0xF800, 0xF81F, 0x07E0, 0x07FF, 0xFFE0, 0xFFFF)
@@ -40,10 +43,11 @@ def plot_line(horizon, height, left, top, start, end, color):
             y += step_y
 
 
-def run_demo(slices=0, delay=0):
+def run_demo(slices=0):
     width, height = graphics_size()
     if width < 24 or height < 12:
         raise ValueError("graphics area is too small")
+    start = ticks_ms()
     graphics_clear()
     graph_width = height * 160 // 100
     if graph_width > width:
@@ -63,12 +67,12 @@ def run_demo(slices=0, delay=0):
             previous = point
         completed = (depth + 180) // 6 + 1
         done = depth == 180 or (slices and completed >= slices)
-        if completed % 3 == 0 or done:
-            refresh()
-            if delay:
-                sleep_ms(delay)
         if done:
             break
+    refresh()
+    elapsed = ticks_diff(ticks_ms(), start)
+    print("Mexican Hat: {} ms".format(elapsed))
+    graphics_show()
 
 
 run_demo()

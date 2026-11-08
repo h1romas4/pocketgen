@@ -56,7 +56,7 @@ def exercise_launcher(interrupt):
             os.write(master, b"\x03")
             wait_for(master, output, b"MicroPython execution interrupted", start)
             start = len(output)
-            os.write(master, b"\x1b[21~\x1b[A\r\x7fprint('recovered')\r\x12")
+            os.write(master, b"\x1b[21~\x1b[C\x1b[A\r\x7fprint('recovered')\r\x12")
             wait_for(master, output, b"MicroPython execution completed", start)
             os.write(master, b"\x1d")
             expected_status = 0

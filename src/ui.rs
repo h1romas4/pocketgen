@@ -110,7 +110,6 @@ pub(crate) fn draw_shortcuts(bar: &mut Bar, free_bytes: Option<usize>) {
     }
     let items = [
         (" F10 ", " Menu  "),
-        (" ^E ", " Menu  "),
         (" ^R ", " Run  "),
         (" ^F ", " Find  "),
         (" ^G ", " View  "),

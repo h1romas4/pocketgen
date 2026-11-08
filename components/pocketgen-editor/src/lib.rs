@@ -295,7 +295,6 @@ impl Decoder {
             0x7f | 0x08 => Some(Key::Backspace),
             0x01 => Some(Key::SelectAll),
             0x03 => Some(Key::Copy),
-            0x05 => Some(Key::Menu),
             0x06 => Some(Key::Find),
             0x07 => Some(Key::ToggleOutput),
             0x0e => Some(Key::FindNext),
@@ -662,7 +661,7 @@ impl Menu {
     pub fn handle(&mut self, key: Key) -> Option<Key> {
         let Some((group, item)) = self.open else {
             if key == Key::Menu {
-                self.open = Some((1, 0));
+                self.open = Some((0, 0));
                 return None;
             }
             return Some(key);
@@ -784,9 +783,9 @@ mod tests {
                 Key::Paste,
                 Key::Undo,
                 Key::SelectAll,
-                Key::Menu,
             ]
         );
+        assert_eq!(d.feed(0x05), Ok(None));
         assert_eq!(d.feed(0x1b), Ok(None));
         assert_eq!(d.timeout(), Ok(Some(Key::Escape)));
         assert_eq!(d.feed(0x1b), Ok(None));
@@ -1067,46 +1066,41 @@ mod tests {
     fn menu_navigation_and_cancellation() {
         let mut menu = Menu::default();
         assert_eq!(menu.handle(Key::Menu), None);
-        assert_eq!(menu.state(), Some((1, 0)));
+        assert_eq!(menu.state(), Some((0, 0)));
+        menu.handle(Key::Right);
         assert_eq!(menu.handle(Key::Enter), Some(Key::Undo));
         assert_eq!(menu.handle(Key::Menu), None);
+        menu.handle(Key::Right);
         assert_eq!(menu.handle(Key::Down), None);
         assert_eq!(menu.handle(Key::Down), None);
         assert_eq!(menu.handle(Key::Enter), Some(Key::Copy));
         assert_eq!(menu.state(), None);
         menu.handle(Key::Menu);
-        menu.handle(Key::Right);
+        menu.handle(Key::Left);
         assert_eq!(menu.handle(Key::Enter), Some(Key::Run));
         menu.handle(Key::Menu);
-        menu.handle(Key::Left);
         assert_eq!(menu.state(), Some((0, 0)));
         menu.handle(Key::Down);
         assert_eq!(menu.handle(Key::Enter), Some(Key::DemoStarfield));
         menu.handle(Key::Menu);
-        menu.handle(Key::Left);
         assert_eq!(menu.handle(Key::Enter), Some(Key::DemoMaze));
         menu.handle(Key::Menu);
-        menu.handle(Key::Left);
         menu.handle(Key::Up);
         assert_eq!(menu.handle(Key::Enter), Some(Key::DemoMexicanHatGraphics));
         menu.handle(Key::Menu);
-        menu.handle(Key::Left);
         menu.handle(Key::Up);
         menu.handle(Key::Up);
         assert_eq!(menu.handle(Key::Enter), Some(Key::DemoSineGraph));
         menu.handle(Key::Menu);
-        menu.handle(Key::Left);
         menu.handle(Key::Up);
         menu.handle(Key::Up);
         menu.handle(Key::Up);
         assert_eq!(menu.handle(Key::Enter), Some(Key::DemoMexicanHat));
         menu.handle(Key::Menu);
-        menu.handle(Key::Left);
         menu.handle(Key::Down);
         menu.handle(Key::Down);
         assert_eq!(menu.handle(Key::Enter), Some(Key::DemoCube));
         menu.handle(Key::Menu);
-        menu.handle(Key::Left);
         menu.handle(Key::Left);
         assert_eq!(menu.handle(Key::Enter), Some(Key::Run));
         menu.handle(Key::Menu);
