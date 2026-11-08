@@ -88,9 +88,24 @@ west build -b native_sim/native/64 . -d build/native_display
 python3 scripts/native-sim.py
 ```
 
-The SDL window is for display only. After it opens, focus the terminal running
-the launcher to enter keys; typing while the SDL window is focused does not
-send input to pocketgen.
+The launcher connects its terminal to the virtual UART automatically.
+Alternatively, run the simulator directly:
+
+```sh
+build/native_display/zephyr/zephyr.exe
+```
+
+In another terminal, connect `screen` to the `/dev/pts/N` device printed by
+the simulator:
+
+```sh
+screen -U /dev/pts/N 115200
+```
+
+The SDL window is for display only. Keep the launcher terminal or the `screen`
+terminal focused to enter keys; the SDL window does not receive input.
+To close `screen`, press **Ctrl+A**, then **K**, then **Y**; stop the simulator
+separately in its terminal.
 
 ## ESP32-P4 build
 
@@ -213,14 +228,6 @@ Space skips a scene; Q or Esc exits. It requires a graphics area of at least
 **Plot Trig**
 
 ![Sine and cosine plotted in native-sim](docs/images/native-sim-plot-trig.png)
-
-**Chart Scatter**
-
-![Scatter plot with a fitted line in native-sim](docs/images/native-sim-scatter.png)
-
-**Chart Pie**
-
-![Spending pie chart in native-sim](docs/images/native-sim-pie.png)
 
 **Numeric RC**
 
