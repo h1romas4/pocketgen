@@ -7,6 +7,7 @@ sdk="${ZEPHYR_SDK_INSTALL_DIR:-$workspace/.sdk}"
 
 cd "$workspace"
 git submodule update --init
+git -C components/micropython submodule update --init lib/micropython-lib
 python3 -m venv "$venv"
 "$venv/bin/python" -m pip install --upgrade pip west
 export PATH="$venv/bin:$PATH"

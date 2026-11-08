@@ -27,17 +27,20 @@ sudo apt install -y ca-certificates ccache cmake device-tree-compiler dfu-util \
     make ninja-build python3-dev python3-pip python3-tk python3-venv screen wget xz-utils
 ```
 
-Clone pocketgen, including its Zephyr and MicroPython submodules:
+Clone pocketgen:
 
 ```sh
-git clone --recurse-submodules https://github.com/h1romas4/pocketgen.git
+git clone https://github.com/h1romas4/pocketgen.git
 cd pocketgen
 ```
 
-Initialize the project-local west workspace and install the required modules,
-Python packages and Rust targets. The downloads may take some time.
+Initialize the required submodules and the project-local west workspace, then
+install the required Python packages and Rust targets. The downloads may take
+some time.
 
 ```sh
+git submodule update --init
+git -C components/micropython submodule update --init lib/micropython-lib
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip west
@@ -63,10 +66,10 @@ export ZEPHYR_BASE="$PWD/zephyr"
 export ZEPHYR_SDK_INSTALL_DIR="$PWD/.sdk"  # Or the compatible SDK used above.
 ```
 
-For an existing checkout, run `git submodule update --init --recursive` first.
-Skip `west init` if the project root is already a west workspace. The old
-external Zephyr workspace is no longer used; the build directories below avoid
-reusing its caches.
+For an existing checkout, run the submodule commands above and skip `west init`
+if the project root is already a west workspace. The old external Zephyr
+workspace is no longer used; the build directories below avoid reusing its
+caches.
 
 GitHub Actions builds native-sim and ESP32-P4 and runs the native integration
 and component tests on Ubuntu 26.04.
