@@ -1,0 +1,13 @@
+{
+  "rust-analyzer.cargo.allTargets": false,
+  "rust-analyzer.cargo.extraArgs": [
+    "--config",
+    "build/workspace/native_display/rust/sample-cargo-config.toml",
+    "--config",
+    "env.ZEPHYR_BASE.value=\"zephyr\"",
+    "--config",
+    "env.ZEPHYR_BASE.relative=true",
+    "--config",
+    "env.ZEPHYR_BASE.force=true"
+  ]
+}
