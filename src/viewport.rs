@@ -226,6 +226,9 @@ impl Viewport {
                         " Mexican Hat       ",
                         " Sine Graph        ",
                         " Hat (Graphics)    ",
+                        " Plot Trig         ",
+                        " Plot Projectile   ",
+                        " Plot Growth       ",
                     ],
                 ),
                 1 => (
@@ -240,8 +243,9 @@ impl Viewport {
                 ),
                 _ => (13, &[" Run        Ctrl+R "]),
             };
-            for (i, label) in labels.iter().enumerate().take(height) {
-                parser.process(format!("\x1b[{};{}H", i + 2, col).as_bytes());
+            let first = item.saturating_sub(height.saturating_sub(1));
+            for (row, (i, label)) in labels.iter().enumerate().skip(first).take(height).enumerate() {
+                parser.process(format!("\x1b[{};{}H", row + 2, col).as_bytes());
                 parser.process(if i == item {
                     b"\x1b[37;44m"
                 } else {

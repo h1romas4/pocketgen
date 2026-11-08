@@ -51,6 +51,84 @@ pub(crate) fn test_graphics(
     if pane.toggle() {
         return false;
     }
+    let plot_source = concat!(
+        "from pocketgen import plot, graphics_show\n",
+        "plot((lambda x: x, lambda x: -x), xmin=-2, xmax=2, ymin=-2, ymax=2,\n",
+        "     colors=(0xf800, 0x07e0), grid=False)\n",
+        "print('plot-ok')\n",
+        "graphics_show()\n",
+    );
+    if run_graphics_source(
+        plot_source, renderer, parser, pane, pixels, width, height, bar_height,
+    ) != 0
+        || !parser.screen().contents().contains("plot-ok")
+    {
+        log::error!("Plot test failed: {}", parser.screen().contents());
+        return false;
+    }
+    pixels.fill(0);
+    pane.render(parser, renderer, pixels, width, width / 2, bar_height);
+    if pixels.iter().filter(|&&pixel| pixel == 0xf800).count() < 100
+        || pixels.iter().filter(|&&pixel| pixel == 0x07e0).count() < 100
+    {
+        log::error!("Plot curves are missing");
+        return false;
+    }
+    for (name, source) in [
+        ("trig", include_str!("../examples/plot_trig.py")),
+        ("projectile", include_str!("../examples/plot_projectile.py")),
+        ("growth", include_str!("../examples/plot_growth.py")),
+    ] {
+        if run_graphics_source(
+            source, renderer, parser, pane, pixels, width, height, bar_height,
+        ) != 0
+        {
+            log::error!("Plot {} demo failed: {}", name, parser.screen().contents());
+            return false;
+        }
+        pixels.fill(0);
+        pane.render(parser, renderer, pixels, width, width / 2, bar_height);
+        if pixels.iter().filter(|&&pixel| pixel == 0x07ff).count() < 40
+            || pixels.iter().filter(|&&pixel| pixel == 0xffe0).count() < 40
+        {
+            log::error!("Plot {} demo curves are missing", name);
+            return false;
+        }
+    }
+    let plot_validation = concat!(
+        "import math\n",
+        "from pocketgen import plot, graphics_size, graphics_show\n",
+        "calls = [0]\n",
+        "def square(x):\n",
+        " calls[0] += 1\n",
+        " return x * x\n",
+        "bounds = plot(functions=square, xmin=-1, xmax=1)\n",
+        "assert calls[0] == graphics_size()[0] - 77\n",
+        "assert bounds[0] == -1 and bounds[1] == 1 and bounds[3] == 1\n",
+        "plot((math.sin, math.cos), -2, 2, ymin=-1, ymax=1, grid=False)\n",
+        "plot(math.sqrt, -1, 1)\n",
+        "try:\n",
+        " plot(lambda x: None)\n",
+        " raise RuntimeError('invalid plot accepted')\n",
+        "except ValueError:\n",
+        " pass\n",
+        "try:\n",
+        " plot()\n",
+        " raise RuntimeError('missing function accepted')\n",
+        "except TypeError:\n",
+        " pass\n",
+        "print('plot-validation-ok')\n",
+        "graphics_show()\n",
+    );
+    if run_graphics_source(
+        plot_validation, renderer, parser, pane, pixels, width, height, bar_height,
+    ) != 0
+        || !parser.screen().contents().contains("plot-validation-ok")
+    {
+        log::error!("Plot validation failed: {}", parser.screen().contents());
+        return false;
+    }
+    pane.reset();
     let source = "from pocketgen import graphics_size, graphics_clear, graphics_pixel, graphics_line, graphics_show, refresh\n\
         w, h = graphics_size()\n\
         assert w >= 4 and h >= 4\n\
@@ -544,6 +622,18 @@ pub(crate) fn test_selection_and_menu(size: Size) -> bool {
     if menu.handle(Key::Enter) != Some(Key::Copy) {
         return false;
     }
+    menu.handle(Key::Menu);
+    menu.handle(Key::Up);
+    viewport.render(&editor, &menu, &mut parser, 4, renderer.cols());
+    if !parser.screen().contents().contains("Plot Growth")
+        || !parser
+            .screen()
+            .cell(3, 0)
+            .is_some_and(|cell| cell.bgcolor() == vt100::Color::Idx(4))
+    {
+        return false;
+    }
+    menu.handle(Key::Escape);
     editor.apply(Key::Copy);
     viewport.render(
         &editor,
@@ -632,7 +722,7 @@ pub(crate) fn test_demo_loading(size: Size, footer_size: Size) -> bool {
     {
         return false;
     }
-    for key in [Key::Menu, Key::Up, Key::Up, Key::Up, Key::Enter] {
+    for key in [Key::Menu, Key::Down, Key::Down, Key::Down, Key::Enter] {
         if !apply_input(
             key,
             &mut menu,
@@ -652,7 +742,7 @@ pub(crate) fn test_demo_loading(size: Size, footer_size: Size) -> bool {
     {
         return false;
     }
-    for key in [Key::Menu, Key::Up, Key::Up, Key::Enter] {
+    for key in [Key::Menu, Key::Down, Key::Down, Key::Down, Key::Down, Key::Enter] {
         if !apply_input(
             key,
             &mut menu,
@@ -672,7 +762,9 @@ pub(crate) fn test_demo_loading(size: Size, footer_size: Size) -> bool {
     {
         return false;
     }
-    for key in [Key::Menu, Key::Up, Key::Enter] {
+    for key in [
+        Key::Menu, Key::Down, Key::Down, Key::Down, Key::Down, Key::Down, Key::Enter,
+    ] {
         if !apply_input(
             key,
             &mut menu,
@@ -686,9 +778,35 @@ pub(crate) fn test_demo_loading(size: Size, footer_size: Size) -> bool {
             return false;
         }
     }
-    editor.text() == include_str!("../examples/mexican_hat_graphics.py")
-        && editor.cursor() == 0
-        && right.screen().contents().trim().is_empty()
+    if editor.text() != include_str!("../examples/mexican_hat_graphics.py")
+        || editor.cursor() != 0
+        || !right.screen().contents().trim().is_empty()
+    {
+        return false;
+    }
+    for (up_count, source) in [
+        (3, include_str!("../examples/plot_trig.py")),
+        (2, include_str!("../examples/plot_projectile.py")),
+        (1, include_str!("../examples/plot_growth.py")),
+    ] {
+        for key in core::iter::once(Key::Menu)
+            .chain(core::iter::repeat_n(Key::Up, up_count))
+            .chain(core::iter::once(Key::Enter))
+        {
+            if !apply_input(
+                key, &mut menu, &mut editor, &mut right, &mut footer, None, false, 1,
+            ) {
+                return false;
+            }
+        }
+        if editor.text() != source
+            || editor.cursor() != 0
+            || !right.screen().contents().trim().is_empty()
+        {
+            return false;
+        }
+    }
+    true
 }
 
 pub(crate) fn test_demo_execution(size: Size, source: &str, title: &str) -> bool {

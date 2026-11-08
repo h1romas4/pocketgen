@@ -66,7 +66,11 @@ endif()
 
 set(MICROPY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/components/micropython)
 set(MICROPY_TARGET micropython)
+set(MICROPY_PORT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/python)
+set(MICROPY_FROZEN_MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/src/python/manifest.py)
+set(MICROPY_MPY_TOOL_FLAGS "-mlongint-impl=none")
 include(${MICROPY_DIR}/py/py.cmake)
+include(${MICROPY_DIR}/py/manifest.cmake)
 
 set(MICROPY_SOURCE_QSTR
   ${MICROPY_SOURCE_PY}

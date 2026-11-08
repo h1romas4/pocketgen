@@ -179,6 +179,9 @@ Loading replaces the editor buffer; **Ctrl+Z** undoes the replacement.
 | [Mexican Hat](examples/mexican_hat.py) | Text | Draws a Mexican hat surface. |
 | [Sine Graph](examples/sine_graph.py) | Graphics | Draws a sine curve. |
 | [Hat (Graphics)](examples/mexican_hat_graphics.py) | Graphics | Draws and times a Mexican hat surface. |
+| [Plot Trig](examples/plot_trig.py) | Graphics | Compares sine and cosine. |
+| [Plot Projectile](examples/plot_projectile.py) | Graphics | Compares projectile heights at two launch angles. |
+| [Plot Growth](examples/plot_growth.py) | Graphics | Compares compound growth at three interest rates. |
 
 **Hat (Graphics)** prints elapsed wall-clock time in the text view; use
 **Ctrl+G** to see it. The measurement includes buffer initialization, the final
@@ -205,6 +208,7 @@ the following functions from `pocketgen`:
 | `sleep_ms(ms)` | Wait for non-negative milliseconds while processing events. |
 | `ticks_ms()` | Return a monotonic millisecond counter. |
 | `ticks_diff(end, start)` | Return the wrap-safe difference between two ticks. |
+| `plot(functions, xmin=-10, xmax=10, ymin=None, ymax=None, colors=None, grid=True)` | Plot one or more functions; see below. |
 
 Text and graphics coordinates start at the top-left and must be in bounds.
 Graphics colors are RGB565 integers from `0` to `65535`; call
@@ -216,6 +220,35 @@ The retained graphics buffer uses two bytes per pixel, separately from the
 `ticks_ms()` wraps every 2^30 milliseconds; `ticks_diff()` is unambiguous for
 intervals shorter than 2^29 milliseconds. The standard `time` module is not
 enabled.
+
+### Function plots
+
+```python
+import math
+from pocketgen import plot
+
+plot((math.sin, math.cos), -2 * math.pi, 2 * math.pi)
+plot(lambda x: x * x, -5, 5, ymin=0, ymax=25, colors=0x07ff)
+```
+
+`functions` is a callable `f(x)` or a list/tuple of callables. The x range
+must be finite and increasing. The y range defaults to the finite sampled
+minimum and maximum; specify both `ymin` and `ymax` to fix it. Constant
+functions receive an expanded y range. The result is
+`(xmin, xmax, ymin, ymax)`. Each call clears the graphics buffer.
+
+The axes show approximate endpoint labels (two significant digits); the grid
+can be disabled with `grid=False`. Colors are RGB565: pass an integer for one
+function or a list/tuple with one color per function. Defaults cycle through
+cyan, yellow, magenta, green, orange, and white.
+
+Each function is sampled once per horizontal plot pixel. `None`, non-finite
+results, and `ValueError`, `ZeroDivisionError`, or `OverflowError` from the
+function produce gaps; other exceptions propagate. If all samples are
+undefined, `plot` raises `ValueError`. Curves are clipped to the y range; a
+segment spanning both y boundaries is omitted to reduce false lines at
+discontinuities. Sampling can still miss a discontinuity or narrow feature.
+Large numbers of functions may exceed the MicroPython heap.
 
 ## License
 

@@ -9,6 +9,7 @@ python3 tests/starfield_demo_test.py
 python3 tests/cube_demo_test.py
 python3 tests/mexican_hat_demo_test.py
 python3 tests/mexican_hat_graphics_demo_test.py
+python3 tests/plot_test.py
 cargo test --manifest-path components/pocketgen-editor/Cargo.toml \
     --target-dir build/editor-tests --test syntax
 
@@ -19,7 +20,7 @@ west build -b native_sim/native/64 . -d build/native_selftest -- \
 output="$(mktemp)"
 trap 'rm -f "$output"' EXIT
 status=0
-SDL_VIDEODRIVER=dummy timeout 10s build/native_selftest/zephyr/zephyr.exe >"$output" 2>&1 || status=$?
+SDL_VIDEODRIVER=dummy timeout 20s build/native_selftest/zephyr/zephyr.exe >"$output" 2>&1 || status=$?
 cat "$output"
 if [[ "$status" -ne 124 ]]; then
     printf 'Simulator exited unexpectedly: %s\n' "$status" >&2

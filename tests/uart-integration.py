@@ -20,7 +20,7 @@ serial_fd = None
 screen_pid = None
 screen_name = f"pocketgen-test-{os.getpid()}"
 via_screen = len(sys.argv) > 2 and sys.argv[2] == "--screen"
-deadline = time.monotonic() + 15
+deadline = time.monotonic() + 30
 
 
 def wait_for(message, start, timeout=10):
@@ -157,7 +157,7 @@ try:
 
     for name, selection in ((b"starfield", b"\x1b[B"),
                             (b"cube", b"\x1b[B\x1b[B"),
-                            (b"mexican hat", b"\x1b[A\x1b[A\x1b[A"),
+                            (b"mexican hat", b"\x1b[B" * 3),
                             (b"maze", b"")):
         start = len(output)
         os.write(serial_fd, b"\x1b[21~" + selection + b"\r")
@@ -179,7 +179,7 @@ try:
     print(f"Demo menu loading, animation, and interruption passed ({mode})")
 
     start = len(output)
-    os.write(serial_fd, b"\x1b[21~\x1b[A\x1b[A\r")
+    os.write(serial_fd, b"\x1b[21~" + b"\x1b[B" * 4 + b"\r")
     wait_for(b"Loaded sine graph demo", start)
     os.write(serial_fd, b"\x12")
     wait_for(b"MicroPython execution completed", start)
@@ -192,7 +192,7 @@ try:
     print(f"Sine graph demo menu and execution passed ({mode})")
 
     start = len(output)
-    os.write(serial_fd, b"\x1b[21~\x1b[A\r")
+    os.write(serial_fd, b"\x1b[21~" + b"\x1b[B" * 5 + b"\r")
     wait_for(b"Loaded mexican hat graphics demo", start)
     os.write(serial_fd, b"\x12")
     wait_for(b"MicroPython execution started", start)
@@ -203,6 +203,20 @@ try:
     os.write(serial_fd, b"\x07")
     wait_for(b"Output view: graphics", start)
     print(f"Graphics Mexican hat demo menu, drawing, and view toggle passed ({mode})")
+
+    for name, up_count in ((b"plot trig", 3), (b"plot projectile", 2), (b"plot growth", 1)):
+        start = len(output)
+        os.write(serial_fd, b"\x1b[21~" + b"\x1b[A" * up_count + b"\r")
+        wait_for(b"Loaded " + name + b" demo", start)
+        os.write(serial_fd, b"\x12")
+        wait_for(b"MicroPython execution completed", start, timeout=30)
+        if b"MicroPython script raised an exception" in output[start:]:
+            raise RuntimeError(f"{name!r} demo raised an exception")
+        os.write(serial_fd, b"\x07")
+        wait_for(b"Output view: text", start)
+        os.write(serial_fd, b"\x07")
+        wait_for(b"Output view: graphics", start)
+    print(f"Plot demo menu, execution, and view toggle passed ({mode})")
 
     start = len(output)
     replace_and_run(

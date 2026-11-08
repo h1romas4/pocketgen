@@ -125,6 +125,12 @@ pub enum Key {
     DemoSineGraph,
     /// Request loading the graphics Mexican hat example.
     DemoMexicanHatGraphics,
+    /// Request loading the trigonometry plot example.
+    DemoPlotTrig,
+    /// Request loading the projectile plot example.
+    DemoPlotProjectile,
+    /// Request loading the compound growth plot example.
+    DemoPlotGrowth,
 }
 
 /// An invalid or incomplete terminal input sequence.
@@ -611,8 +617,11 @@ impl Editor {
             | Key::DemoStarfield
             | Key::DemoCube
             | Key::DemoMexicanHat
-            | Key::DemoSineGraph => return,
-            Key::DemoMexicanHatGraphics => return,
+            | Key::DemoSineGraph
+            | Key::DemoMexicanHatGraphics
+            | Key::DemoPlotTrig
+            | Key::DemoPlotProjectile
+            | Key::DemoPlotGrowth => return,
             Key::ShiftLeft
             | Key::ShiftRight
             | Key::ShiftUp
@@ -671,11 +680,11 @@ impl Menu {
             Key::Left => self.open = Some(((group + 2) % 3, 0)),
             Key::Right => self.open = Some(((group + 1) % 3, 0)),
             Key::Up => {
-                let count = [6, 5, 1][group];
+                let count = [9, 5, 1][group];
                 self.open = Some((group, (item + count - 1) % count));
             }
             Key::Down => {
-                let count = [6, 5, 1][group];
+                let count = [9, 5, 1][group];
                 self.open = Some((group, (item + 1) % count));
             }
             Key::Enter => {
@@ -687,6 +696,9 @@ impl Menu {
                     (0, 3) => Key::DemoMexicanHat,
                     (0, 4) => Key::DemoSineGraph,
                     (0, 5) => Key::DemoMexicanHatGraphics,
+                    (0, 6) => Key::DemoPlotTrig,
+                    (0, 7) => Key::DemoPlotProjectile,
+                    (0, 8) => Key::DemoPlotGrowth,
                     (1, 0) => Key::Undo,
                     (1, 1) => Key::Cut,
                     (1, 2) => Key::Copy,
@@ -1086,15 +1098,30 @@ mod tests {
         assert_eq!(menu.handle(Key::Enter), Some(Key::DemoMaze));
         menu.handle(Key::Menu);
         menu.handle(Key::Up);
+        assert_eq!(menu.handle(Key::Enter), Some(Key::DemoPlotGrowth));
+        menu.handle(Key::Menu);
+        menu.handle(Key::Up);
+        menu.handle(Key::Up);
+        assert_eq!(menu.handle(Key::Enter), Some(Key::DemoPlotProjectile));
+        menu.handle(Key::Menu);
+        menu.handle(Key::Up);
+        menu.handle(Key::Up);
+        menu.handle(Key::Up);
+        assert_eq!(menu.handle(Key::Enter), Some(Key::DemoPlotTrig));
+        menu.handle(Key::Menu);
+        for _ in 0..5 {
+            menu.handle(Key::Down);
+        }
         assert_eq!(menu.handle(Key::Enter), Some(Key::DemoMexicanHatGraphics));
         menu.handle(Key::Menu);
-        menu.handle(Key::Up);
-        menu.handle(Key::Up);
+        for _ in 0..4 {
+            menu.handle(Key::Down);
+        }
         assert_eq!(menu.handle(Key::Enter), Some(Key::DemoSineGraph));
         menu.handle(Key::Menu);
-        menu.handle(Key::Up);
-        menu.handle(Key::Up);
-        menu.handle(Key::Up);
+        for _ in 0..3 {
+            menu.handle(Key::Down);
+        }
         assert_eq!(menu.handle(Key::Enter), Some(Key::DemoMexicanHat));
         menu.handle(Key::Menu);
         menu.handle(Key::Down);

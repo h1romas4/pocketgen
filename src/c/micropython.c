@@ -243,6 +243,29 @@ static mp_obj_t pocketgen_graphics_show(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(pocketgen_graphics_show_obj, pocketgen_graphics_show);
 
+static mp_obj_t pocketgen_plot(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    mp_obj_t module = mp_import_name(MP_QSTR_pocketgen_plot, mp_const_none, MP_OBJ_NEW_SMALL_INT(0));
+    mp_obj_t function = mp_load_attr(module, MP_QSTR_plot);
+    size_t count = n_args + 2 * kw_args->used;
+    mp_obj_t *call_args = count ? m_new(mp_obj_t, count) : NULL;
+    if (n_args != 0) {
+        memcpy(call_args, args, n_args * sizeof(mp_obj_t));
+    }
+    size_t index = n_args;
+    for (size_t i = 0; i < kw_args->alloc; i++) {
+        if (mp_map_slot_is_filled(kw_args, i)) {
+            call_args[index++] = kw_args->table[i].key;
+            call_args[index++] = kw_args->table[i].value;
+        }
+    }
+    mp_obj_t result = mp_call_function_n_kw(function, n_args, kw_args->used, call_args);
+    if (count != 0) {
+        m_del(mp_obj_t, call_args, count);
+    }
+    return result;
+}
+static MP_DEFINE_CONST_FUN_OBJ_KW(pocketgen_plot_obj, 0, pocketgen_plot);
+
 static const mp_rom_map_elem_t pocketgen_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_pocketgen) },
     { MP_ROM_QSTR(MP_QSTR_cls), MP_ROM_PTR(&pocketgen_cls_obj) },
@@ -258,6 +281,7 @@ static const mp_rom_map_elem_t pocketgen_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_graphics_pixel), MP_ROM_PTR(&pocketgen_graphics_pixel_obj) },
     { MP_ROM_QSTR(MP_QSTR_graphics_line), MP_ROM_PTR(&pocketgen_graphics_line_obj) },
     { MP_ROM_QSTR(MP_QSTR_graphics_show), MP_ROM_PTR(&pocketgen_graphics_show_obj) },
+    { MP_ROM_QSTR(MP_QSTR_plot), MP_ROM_PTR(&pocketgen_plot_obj) },
 };
 static MP_DEFINE_CONST_DICT(pocketgen_module_globals, pocketgen_module_globals_table);
 

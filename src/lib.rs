@@ -97,6 +97,21 @@ fn apply_input(
             info!("Loaded mexican hat graphics demo");
             return true;
         }
+        Key::DemoPlotTrig => {
+            editor.replace_all(include_str!("../examples/plot_trig.py"));
+            info!("Loaded plot trig demo");
+            return true;
+        }
+        Key::DemoPlotProjectile => {
+            editor.replace_all(include_str!("../examples/plot_projectile.py"));
+            info!("Loaded plot projectile demo");
+            return true;
+        }
+        Key::DemoPlotGrowth => {
+            editor.replace_all(include_str!("../examples/plot_growth.py"));
+            info!("Loaded plot growth demo");
+            return true;
+        }
         _ => {}
     }
     if key != Key::Run {
