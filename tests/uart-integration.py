@@ -204,7 +204,9 @@ try:
     wait_for(b"Output view: graphics", start)
     print(f"Graphics Mexican hat demo menu, drawing, and view toggle passed ({mode})")
 
-    for name, up_count in ((b"plot trig", 3), (b"plot projectile", 2), (b"plot growth", 1)):
+    for name, up_count in ((b"plot trig", 8), (b"plot projectile", 7), (b"plot growth", 6),
+                           (b"chart scatter", 5), (b"chart histogram", 4),
+                           (b"chart bar", 3), (b"chart pie", 2), (b"numeric RC", 1)):
         start = len(output)
         os.write(serial_fd, b"\x1b[21~" + b"\x1b[A" * up_count + b"\r")
         wait_for(b"Loaded " + name + b" demo", start)
@@ -216,7 +218,7 @@ try:
         wait_for(b"Output view: text", start)
         os.write(serial_fd, b"\x07")
         wait_for(b"Output view: graphics", start)
-    print(f"Plot demo menu, execution, and view toggle passed ({mode})")
+    print(f"Plot, chart and numeric demo menu, execution, and view toggle passed ({mode})")
 
     start = len(output)
     replace_and_run(

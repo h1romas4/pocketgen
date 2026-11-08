@@ -1,9 +1,13 @@
 # pocketgen
 
-pocketgen is a pocket computer application for Zephyr RTOS. It combines an
-editor derived from Microsoft Edit with MicroPython: edit Python source in the
-left pane and run it in the right pane. It supports native simulation and the
-ESP32-P4 Function EV Board.
+pocketgen is a pocket computer application for Zephyr RTOS.
+
+It combines an editor derived from Microsoft Edit with MicroPython: edit Python source in the
+left pane and run it in the right pane.
+
+It currently supports native simulation and the ESP32-P4 Function EV Board.
+Adding board support could enable it to run on a variety of other
+Zephyr-compatible platforms.
 
 ![pocketgen running the 3D Cube demo in native-sim](docs/images/native-sim-cube.png)
 
@@ -182,11 +186,38 @@ Loading replaces the editor buffer; **Ctrl+Z** undoes the replacement.
 | [Plot Trig](examples/plot_trig.py) | Graphics | Compares sine and cosine. |
 | [Plot Projectile](examples/plot_projectile.py) | Graphics | Compares projectile heights at two launch angles. |
 | [Plot Growth](examples/plot_growth.py) | Graphics | Compares compound growth at three interest rates. |
+| [Chart Scatter](examples/chart_scatter.py) | Graphics | Fits speed to measured distance and time. |
+| [Chart Histogram](examples/chart_histogram.py) | Graphics | Groups daily temperatures into bins. |
+| [Chart Bar](examples/chart_bar.py) | Graphics | Compares monthly balance changes. |
+| [Chart Pie](examples/chart_pie.py) | Graphics | Shows spending by category. |
+| [Numeric RC](examples/numeric_rc.py) | Graphics + text | Visualizes a discharge, half-voltage time, integral, and tangent. |
 
 **Hat (Graphics)** prints elapsed wall-clock time in the text view; use
 **Ctrl+G** to see it. The measurement includes buffer initialization, the final
 `refresh()` call, intermediate display updates, and the VM's periodic 1 ms
 scheduling waits, but not final physical scanout.
+
+### Native-sim screenshots
+
+**Hat (Graphics)**
+
+![Mexican hat surface drawn in native-sim](docs/images/native-sim-hat.png)
+
+**Plot Trig**
+
+![Sine and cosine plotted in native-sim](docs/images/native-sim-plot-trig.png)
+
+**Chart Scatter**
+
+![Scatter plot with a fitted line in native-sim](docs/images/native-sim-scatter.png)
+
+**Chart Pie**
+
+![Spending pie chart in native-sim](docs/images/native-sim-pie.png)
+
+**Numeric RC**
+
+![Capacitor discharge with numerical solution, integral and tangent in native-sim](docs/images/native-sim-numeric-rc.png)
 
 ## MicroPython reference
 
@@ -209,6 +240,15 @@ the following functions from `pocketgen`:
 | `ticks_ms()` | Return a monotonic millisecond counter. |
 | `ticks_diff(end, start)` | Return the wrap-safe difference between two ticks. |
 | `plot(functions, xmin=-10, xmax=10, ymin=None, ymax=None, colors=None, grid=True)` | Plot one or more functions; see below. |
+| `plot_position(x, y, bounds)` | Convert a point within plot bounds to graphics pixels. |
+| `linear_fit(x, y)` | Return the least-squares line and coefficient of determination. |
+| `scatter(x, y, fit=None, xmin=None, xmax=None, ymin=None, ymax=None, color=0x07ff, fit_color=0xffe0, grid=True)` | Plot points and an optional fitted curve. |
+| `hist(data, bins=10, xmin=None, xmax=None, color=0x07ff, grid=True)` | Draw a histogram and return counts and edges. |
+| `bar(values, labels=None, ymin=None, ymax=None, color=0x07ff, grid=True)` | Draw positive and negative bars. |
+| `pie(values, labels=None, colors=None)` | Draw a pie chart and legend. |
+| `solve(func, a, b, tol=1e-8, max_iter=100)` | Find a bracketed root by bisection. |
+| `integrate(func, a, b, steps=100)` | Approximate a definite integral using Simpson's rule. |
+| `derivative(func, x, h=1e-5)` | Approximate a derivative using a central difference. |
 
 Text and graphics coordinates start at the top-left and must be in bounds.
 Graphics colors are RGB565 integers from `0` to `65535`; call
@@ -232,23 +272,88 @@ plot(lambda x: x * x, -5, 5, ymin=0, ymax=25, colors=0x07ff)
 ```
 
 `functions` is a callable `f(x)` or a list/tuple of callables. The x range
-must be finite and increasing. The y range defaults to the finite sampled
-minimum and maximum; specify both `ymin` and `ymax` to fix it. Constant
-functions receive an expanded y range. The result is
-`(xmin, xmax, ymin, ymax)`. Each call clears the graphics buffer.
+must be finite and increasing. The y range is automatic unless both `ymin` and
+`ymax` are supplied; constant ranges are expanded. Each call clears graphics
+and returns `(xmin, xmax, ymin, ymax)`.
 
-The axes show approximate endpoint labels (two significant digits); the grid
-can be disabled with `grid=False`. Colors are RGB565: pass an integer for one
-function or a list/tuple with one color per function. Defaults cycle through
-cyan, yellow, magenta, green, orange, and white.
+Pass these bounds to `plot_position(x, y, bounds)` to convert an in-range point
+to pixels for annotations. Non-finite or out-of-range points raise `ValueError`.
+Axis endpoints use two significant digits; `grid=False` hides the grid. Colors
+are RGB565: use one integer or one per function. Defaults cycle through cyan,
+yellow, magenta, green, orange, and white.
 
-Each function is sampled once per horizontal plot pixel. `None`, non-finite
-results, and `ValueError`, `ZeroDivisionError`, or `OverflowError` from the
-function produce gaps; other exceptions propagate. If all samples are
-undefined, `plot` raises `ValueError`. Curves are clipped to the y range; a
-segment spanning both y boundaries is omitted to reduce false lines at
-discontinuities. Sampling can still miss a discontinuity or narrow feature.
-Large numbers of functions may exceed the MicroPython heap.
+Functions are sampled once per horizontal pixel. `None`, non-finite results,
+and `ValueError`, `ZeroDivisionError`, or `OverflowError` produce gaps; other
+exceptions propagate. All undefined samples raise `ValueError`. Curves are
+clipped, and segments spanning both y boundaries are omitted to reduce false
+lines. Sampling may miss discontinuities or narrow features; many functions may
+exceed the MicroPython heap.
+
+### Data charts
+
+```python
+from pocketgen import linear_fit, scatter, hist, bar, pie
+
+x, y = [0, 1, 2, 3], [0.2, 1.8, 4.1, 6.2]
+slope, intercept, r2 = linear_fit(x, y)
+scatter(x, y, fit=lambda t: slope * t + intercept)
+counts, edges = hist([18, 19, 20, 20, 21, 22], bins=4)
+bar([12, -5, 18], labels=["Jan", "Feb", "Mar"])
+fractions = pie([40, 35, 25], labels=["Rent", "Food", "Other"])
+```
+
+Inputs are non-empty, indexable sequences of finite numbers, such as lists,
+tuples, or arrays.
+
+- `linear_fit`: Requires equal lengths, at least two points, and varying x.
+  Returns `(slope, intercept, r2)`; `r2` is `None` for constant y.
+- `scatter`: Requires equal lengths and returns `(xmin, xmax, ymin, ymax)`.
+  An optional callable `fit(x)` is sampled and clipped like `plot`; automatic
+  y limits include the curve.
+- `hist`: Uses positive integer `bins` and returns `(counts, edges)`. Bins are
+  left-inclusive and right-exclusive, except the final bin includes both ends.
+  Data outside an explicit range raises `ValueError`.
+- `bar`: Returns `(ymin, ymax)`; the range must include zero. Values outside
+  the range are clipped.
+- `pie`: Requires non-negative values with a positive total and returns
+  fractions in input order.
+
+Ranges are automatic unless both endpoints are supplied; constant ranges are
+expanded. Labels default to `1`, `2`, etc. Supplied labels must match the value
+count and fit the display; they are uppercased and support ASCII letters,
+digits, spaces, and `- + . / % _ :`, but not Japanese. Colors are RGB565;
+pie uses the `plot` palette by default or one supplied color per value.
+Each chart clears and refreshes graphics. Printing selects text in automatic
+mode; use `graphics_show()` or **Ctrl+G** to return to the chart.
+
+### Numerical calculations
+
+```python
+import math
+from pocketgen import solve, integrate, derivative
+
+root = solve(lambda x: x * x - 2, 0, 2)
+area = integrate(math.sin, 0, math.pi)
+slope = derivative(math.sin, 0)
+```
+
+All inputs and sampled values must be finite. Results are approximate floats;
+exceptions from the callable propagate.
+
+- `solve`: Bisection requires `a < b` and opposite endpoint signs, unless an
+  endpoint is zero. It returns an exact sampled zero or the midpoint of a
+  bracket no wider than positive `tol`. Invalid brackets, precision limits, or
+  exceeding `max_iter` raise `ValueError`. Discontinuities can give false roots.
+- `integrate`: Simpson's rule uses an even `steps >= 2` and `steps + 1` samples.
+  Reversed bounds reverse the sign; equal bounds return zero without sampling.
+- `derivative`: Central difference samples at `x-h` and `x+h`; `h` must be
+  positive and both points representable.
+
+Integration and differentiation do not estimate error. Compare different
+`steps` or `h`, especially near discontinuities or sharp features.
+
+The **Numeric RC** demo visualizes the discharge, half-voltage point, integral,
+and tangent. Use **Ctrl+G** to see the numerical results and color legend.
 
 ## License
 

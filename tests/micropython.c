@@ -208,6 +208,19 @@ int pocketgen_test_micropython(void) {
               "assert math.modf(1.5) == (0.5, 1.0)\n"
               "print('functions-ok')\n", 0, "functions-ok") != 0 ||
         check("import math\nmath.sqrt(-1.0)\n", 1, "ValueError") != 0 ||
+        check("import math\nfrom pocketgen import solve, integrate, derivative\n"
+              "assert abs(solve(lambda x: x*x-2, 0, 2, tol=1e-10) - math.sqrt(2)) < 1e-10\n"
+              "assert abs(integrate(math.sin, 0, math.pi, steps=100) - 2) < 2e-8\n"
+              "assert abs(integrate(math.sin, math.pi, 0, steps=100) + 2) < 2e-8\n"
+              "assert abs(derivative(math.sin, 0, h=0.00001) - 1) < 2e-11\n"
+              "assert abs(derivative(lambda x: 1e308*x, 0, h=1) / 1e308 - 1) < 1e-12\n"
+              "print('numeric-ok')\n", 0, "numeric-ok") != 0 ||
+        check("from pocketgen import solve\nsolve(lambda x: x*x+1, -1, 1)\n",
+              1, "ValueError") != 0 ||
+        check("from pocketgen import integrate\nintegrate(lambda x: x, 0, 1, steps=3)\n",
+              1, "ValueError") != 0 ||
+        check("from pocketgen import derivative\nderivative(lambda x: x, 1e16)\n",
+              1, "ValueError") != 0 ||
         check("raise ValueError('bad input')\n", 1, "ValueError: bad input") != 0 ||
         check("if True print(1)\n", 1, "SyntaxError") != 0 ||
         check("value = 42\nprint(value)\n", 0, "42\n") != 0 ||

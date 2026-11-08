@@ -112,6 +112,31 @@ fn apply_input(
             info!("Loaded plot growth demo");
             return true;
         }
+        Key::DemoChartScatter => {
+            editor.replace_all(include_str!("../examples/chart_scatter.py"));
+            info!("Loaded chart scatter demo");
+            return true;
+        }
+        Key::DemoChartHistogram => {
+            editor.replace_all(include_str!("../examples/chart_histogram.py"));
+            info!("Loaded chart histogram demo");
+            return true;
+        }
+        Key::DemoChartBar => {
+            editor.replace_all(include_str!("../examples/chart_bar.py"));
+            info!("Loaded chart bar demo");
+            return true;
+        }
+        Key::DemoChartPie => {
+            editor.replace_all(include_str!("../examples/chart_pie.py"));
+            info!("Loaded chart pie demo");
+            return true;
+        }
+        Key::DemoNumericRc => {
+            editor.replace_all(include_str!("../examples/numeric_rc.py"));
+            info!("Loaded numeric RC demo");
+            return true;
+        }
         _ => {}
     }
     if key != Key::Run {

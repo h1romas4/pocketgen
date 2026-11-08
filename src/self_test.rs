@@ -95,9 +95,33 @@ pub(crate) fn test_graphics(
             return false;
         }
     }
+    if run_graphics_source(
+        include_str!("../examples/numeric_rc.py"),
+        renderer,
+        parser,
+        pane,
+        pixels,
+        width,
+        height,
+        bar_height,
+    ) != 0
+        || !parser.screen().contents().contains("Half-voltage time:")
+        || !parser.screen().contents().contains("Slope at 1 s:")
+    {
+        log::error!("Numeric RC demo failed: {}", parser.screen().contents());
+        return false;
+    }
+    pixels.fill(0);
+    pane.render(parser, renderer, pixels, width, width / 2, bar_height);
+    for (color, minimum) in [(0x07ff, 40), (0xffe0, 40), (0xf81f, 40), (0x2108, 100), (0x07e0, 10)] {
+        if pixels.iter().filter(|&&pixel| pixel == color).count() < minimum {
+            log::error!("Numeric RC demo is missing color {:#06x}", color);
+            return false;
+        }
+    }
     let plot_validation = concat!(
         "import math\n",
-        "from pocketgen import plot, graphics_size, graphics_show\n",
+        "from pocketgen import plot, plot_position, graphics_size, graphics_show\n",
         "calls = [0]\n",
         "def square(x):\n",
         " calls[0] += 1\n",
@@ -105,6 +129,15 @@ pub(crate) fn test_graphics(
         "bounds = plot(functions=square, xmin=-1, xmax=1)\n",
         "assert calls[0] == graphics_size()[0] - 77\n",
         "assert bounds[0] == -1 and bounds[1] == 1 and bounds[3] == 1\n",
+        "left, bottom = plot_position(bounds[0], bounds[2], bounds)\n",
+        "right, top = plot_position(bounds[1], bounds[3], bounds)\n",
+        "assert left == 76 and bottom == graphics_size()[1] - 14\n",
+        "assert right == graphics_size()[0] - 2 and top == 11\n",
+        "try:\n",
+        " plot_position(2, 0, bounds)\n",
+        " raise RuntimeError('invalid plot position accepted')\n",
+        "except ValueError:\n",
+        " pass\n",
         "plot((math.sin, math.cos), -2, 2, ymin=-1, ymax=1, grid=False)\n",
         "plot(math.sqrt, -1, 1)\n",
         "try:\n",
@@ -126,6 +159,41 @@ pub(crate) fn test_graphics(
         || !parser.screen().contents().contains("plot-validation-ok")
     {
         log::error!("Plot validation failed: {}", parser.screen().contents());
+        return false;
+    }
+    let chart_validation = concat!(
+        "from array import array\n",
+        "from pocketgen import linear_fit, scatter, hist, bar, pie, graphics_show\n",
+        "a, b, r2 = linear_fit(array('d', [1, 2, 3]), (3, 5, 7))\n",
+        "assert abs(a - 2) < 0.00001 and abs(b - 1) < 0.00001\n",
+        "assert abs(r2 - 1) < 0.00001\n",
+        "assert linear_fit([1, 2], [4, 4])[2] is None\n",
+        "assert scatter([1, 2, 3], [3, 5, 7], fit=lambda x: a*x+b,\n",
+        " xmin=1, xmax=3, ymin=0, ymax=8, grid=False) == (1, 3, 0, 8)\n",
+        "counts, edges = hist([1, 2, 2, 3], bins=2)\n",
+        "assert counts == [1, 3] and edges == [1, 2, 3]\n",
+        "assert bar([4, -2], labels=['A', 'B']) == (-2, 4)\n",
+        "fractions = pie([40, 60], labels=['A', 'B'])\n",
+        "assert abs(fractions[0] - 0.4) < 0.00001\n",
+        "assert pie((0, 1), colors=(0xf800, 0x07e0)) == [0, 1]\n",
+        "for f in (lambda: linear_fit([1, 1], [1, 2]),\n",
+        "          lambda: hist([1, 2], bins=0),\n",
+        "          lambda: bar([1], labels=['?']),\n",
+        "          lambda: pie([0, 0])):\n",
+        " try:\n",
+        "  f()\n",
+        "  raise RuntimeError('invalid chart accepted')\n",
+        " except ValueError:\n",
+        "  pass\n",
+        "print('charts-ok')\n",
+        "graphics_show()\n",
+    );
+    if run_graphics_source(
+        chart_validation, renderer, parser, pane, pixels, width, height, bar_height,
+    ) != 0
+        || !parser.screen().contents().contains("charts-ok")
+    {
+        log::error!("Chart validation failed: {}", parser.screen().contents());
         return false;
     }
     pane.reset();
@@ -625,7 +693,7 @@ pub(crate) fn test_selection_and_menu(size: Size) -> bool {
     menu.handle(Key::Menu);
     menu.handle(Key::Up);
     viewport.render(&editor, &menu, &mut parser, 4, renderer.cols());
-    if !parser.screen().contents().contains("Plot Growth")
+    if !parser.screen().contents().contains("Numeric RC")
         || !parser
             .screen()
             .cell(3, 0)
@@ -785,9 +853,14 @@ pub(crate) fn test_demo_loading(size: Size, footer_size: Size) -> bool {
         return false;
     }
     for (up_count, source) in [
-        (3, include_str!("../examples/plot_trig.py")),
-        (2, include_str!("../examples/plot_projectile.py")),
-        (1, include_str!("../examples/plot_growth.py")),
+        (8, include_str!("../examples/plot_trig.py")),
+        (7, include_str!("../examples/plot_projectile.py")),
+        (6, include_str!("../examples/plot_growth.py")),
+        (5, include_str!("../examples/chart_scatter.py")),
+        (4, include_str!("../examples/chart_histogram.py")),
+        (3, include_str!("../examples/chart_bar.py")),
+        (2, include_str!("../examples/chart_pie.py")),
+        (1, include_str!("../examples/numeric_rc.py")),
     ] {
         for key in core::iter::once(Key::Menu)
             .chain(core::iter::repeat_n(Key::Up, up_count))

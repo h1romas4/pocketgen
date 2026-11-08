@@ -131,6 +131,16 @@ pub enum Key {
     DemoPlotProjectile,
     /// Request loading the compound growth plot example.
     DemoPlotGrowth,
+    /// Request loading the scatter and regression example.
+    DemoChartScatter,
+    /// Request loading the histogram example.
+    DemoChartHistogram,
+    /// Request loading the bar chart example.
+    DemoChartBar,
+    /// Request loading the pie chart example.
+    DemoChartPie,
+    /// Request loading the numerical calculation example.
+    DemoNumericRc,
 }
 
 /// An invalid or incomplete terminal input sequence.
@@ -621,7 +631,12 @@ impl Editor {
             | Key::DemoMexicanHatGraphics
             | Key::DemoPlotTrig
             | Key::DemoPlotProjectile
-            | Key::DemoPlotGrowth => return,
+            | Key::DemoPlotGrowth
+            | Key::DemoChartScatter
+            | Key::DemoChartHistogram
+            | Key::DemoChartBar
+            | Key::DemoChartPie
+            | Key::DemoNumericRc => return,
             Key::ShiftLeft
             | Key::ShiftRight
             | Key::ShiftUp
@@ -680,11 +695,11 @@ impl Menu {
             Key::Left => self.open = Some(((group + 2) % 3, 0)),
             Key::Right => self.open = Some(((group + 1) % 3, 0)),
             Key::Up => {
-                let count = [9, 5, 1][group];
+                let count = [14, 5, 1][group];
                 self.open = Some((group, (item + count - 1) % count));
             }
             Key::Down => {
-                let count = [9, 5, 1][group];
+                let count = [14, 5, 1][group];
                 self.open = Some((group, (item + 1) % count));
             }
             Key::Enter => {
@@ -699,6 +714,11 @@ impl Menu {
                     (0, 6) => Key::DemoPlotTrig,
                     (0, 7) => Key::DemoPlotProjectile,
                     (0, 8) => Key::DemoPlotGrowth,
+                    (0, 9) => Key::DemoChartScatter,
+                    (0, 10) => Key::DemoChartHistogram,
+                    (0, 11) => Key::DemoChartBar,
+                    (0, 12) => Key::DemoChartPie,
+                    (0, 13) => Key::DemoNumericRc,
                     (1, 0) => Key::Undo,
                     (1, 1) => Key::Cut,
                     (1, 2) => Key::Copy,
@@ -1096,18 +1116,22 @@ mod tests {
         assert_eq!(menu.handle(Key::Enter), Some(Key::DemoStarfield));
         menu.handle(Key::Menu);
         assert_eq!(menu.handle(Key::Enter), Some(Key::DemoMaze));
-        menu.handle(Key::Menu);
-        menu.handle(Key::Up);
-        assert_eq!(menu.handle(Key::Enter), Some(Key::DemoPlotGrowth));
-        menu.handle(Key::Menu);
-        menu.handle(Key::Up);
-        menu.handle(Key::Up);
-        assert_eq!(menu.handle(Key::Enter), Some(Key::DemoPlotProjectile));
-        menu.handle(Key::Menu);
-        menu.handle(Key::Up);
-        menu.handle(Key::Up);
-        menu.handle(Key::Up);
-        assert_eq!(menu.handle(Key::Enter), Some(Key::DemoPlotTrig));
+        for (up_count, expected) in [
+            (1, Key::DemoNumericRc),
+            (2, Key::DemoChartPie),
+            (3, Key::DemoChartBar),
+            (4, Key::DemoChartHistogram),
+            (5, Key::DemoChartScatter),
+            (6, Key::DemoPlotGrowth),
+            (7, Key::DemoPlotProjectile),
+            (8, Key::DemoPlotTrig),
+        ] {
+            menu.handle(Key::Menu);
+            for _ in 0..up_count {
+                menu.handle(Key::Up);
+            }
+            assert_eq!(menu.handle(Key::Enter), Some(expected));
+        }
         menu.handle(Key::Menu);
         for _ in 0..5 {
             menu.handle(Key::Down);

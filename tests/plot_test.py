@@ -38,7 +38,7 @@ class Graphics:
         self.refreshes += 1
 
 
-def load_plot(graphics):
+def load_plot_module(graphics):
     module = types.ModuleType("pocketgen")
     for name in ("graphics_size", "graphics_clear", "graphics_pixel", "graphics_line", "refresh"):
         setattr(module, name, getattr(graphics, name))
@@ -46,10 +46,29 @@ def load_plot(graphics):
     plot_module = importlib.util.module_from_spec(spec)
     with patch.dict(sys.modules, {"pocketgen": module}):
         spec.loader.exec_module(plot_module)
-    return plot_module.plot
+    return plot_module
+
+
+def load_plot(graphics):
+    return load_plot_module(graphics).plot
 
 
 class PlotTests(unittest.TestCase):
+    def test_plot_position(self):
+        graphics = Graphics()
+        module = load_plot_module(graphics)
+        bounds = module.plot(lambda x: x, -1, 1)
+        self.assertEqual(module.plot_position(-1, -1, bounds), (76, 86))
+        self.assertEqual(module.plot_position(1, 1, bounds), (198, 11))
+        self.assertEqual(module.plot_position(0, 0, bounds), (137, 49))
+        for x, y, limits in ((2, 0, bounds), (0, -2, bounds),
+                             (math.nan, 0, bounds), (0, math.inf, bounds),
+                             (0, 0, (0, 0, -1, 1))):
+            with self.subTest(x=x, y=y, limits=limits), self.assertRaises(ValueError):
+                module.plot_position(x, y, limits)
+        with self.assertRaises(ValueError):
+            load_plot_module(Graphics(127, 100)).plot_position(0, 0, (-1, 1, -1, 1))
+
     def test_auto_range_multiple_colors_and_single_sampling(self):
         graphics = Graphics()
         calls = [[], []]

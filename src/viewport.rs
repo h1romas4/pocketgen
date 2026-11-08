@@ -229,6 +229,11 @@ impl Viewport {
                         " Plot Trig         ",
                         " Plot Projectile   ",
                         " Plot Growth       ",
+                        " Chart Scatter     ",
+                        " Chart Histogram   ",
+                        " Chart Bar         ",
+                        " Chart Pie         ",
+                        " Numeric RC        ",
                     ],
                 ),
                 1 => (

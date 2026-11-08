@@ -243,9 +243,10 @@ static mp_obj_t pocketgen_graphics_show(void) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_0(pocketgen_graphics_show_obj, pocketgen_graphics_show);
 
-static mp_obj_t pocketgen_plot(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
-    mp_obj_t module = mp_import_name(MP_QSTR_pocketgen_plot, mp_const_none, MP_OBJ_NEW_SMALL_INT(0));
-    mp_obj_t function = mp_load_attr(module, MP_QSTR_plot);
+static mp_obj_t pocketgen_python_call(qstr module_name, qstr function_name,
+    size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    mp_obj_t module = mp_import_name(module_name, mp_const_none, MP_OBJ_NEW_SMALL_INT(0));
+    mp_obj_t function = mp_load_attr(module, function_name);
     size_t count = n_args + 2 * kw_args->used;
     mp_obj_t *call_args = count ? m_new(mp_obj_t, count) : NULL;
     if (n_args != 0) {
@@ -264,7 +265,56 @@ static mp_obj_t pocketgen_plot(size_t n_args, const mp_obj_t *args, mp_map_t *kw
     }
     return result;
 }
+
+static mp_obj_t pocketgen_plot(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    return pocketgen_python_call(MP_QSTR_pocketgen_plot, MP_QSTR_plot, n_args, args, kw_args);
+}
 static MP_DEFINE_CONST_FUN_OBJ_KW(pocketgen_plot_obj, 0, pocketgen_plot);
+
+static mp_obj_t pocketgen_plot_position(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    return pocketgen_python_call(MP_QSTR_pocketgen_plot, MP_QSTR_plot_position, n_args, args, kw_args);
+}
+static MP_DEFINE_CONST_FUN_OBJ_KW(pocketgen_plot_position_obj, 0, pocketgen_plot_position);
+
+static mp_obj_t pocketgen_scatter(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    return pocketgen_python_call(MP_QSTR_pocketgen_charts, MP_QSTR_scatter, n_args, args, kw_args);
+}
+static MP_DEFINE_CONST_FUN_OBJ_KW(pocketgen_scatter_obj, 0, pocketgen_scatter);
+
+static mp_obj_t pocketgen_linear_fit(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    return pocketgen_python_call(MP_QSTR_pocketgen_charts, MP_QSTR_linear_fit, n_args, args, kw_args);
+}
+static MP_DEFINE_CONST_FUN_OBJ_KW(pocketgen_linear_fit_obj, 0, pocketgen_linear_fit);
+
+static mp_obj_t pocketgen_hist(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    return pocketgen_python_call(MP_QSTR_pocketgen_charts, MP_QSTR_hist, n_args, args, kw_args);
+}
+static MP_DEFINE_CONST_FUN_OBJ_KW(pocketgen_hist_obj, 0, pocketgen_hist);
+
+static mp_obj_t pocketgen_bar(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    return pocketgen_python_call(MP_QSTR_pocketgen_charts, MP_QSTR_bar, n_args, args, kw_args);
+}
+static MP_DEFINE_CONST_FUN_OBJ_KW(pocketgen_bar_obj, 0, pocketgen_bar);
+
+static mp_obj_t pocketgen_pie(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    return pocketgen_python_call(MP_QSTR_pocketgen_charts, MP_QSTR_pie, n_args, args, kw_args);
+}
+static MP_DEFINE_CONST_FUN_OBJ_KW(pocketgen_pie_obj, 0, pocketgen_pie);
+
+static mp_obj_t pocketgen_solve(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    return pocketgen_python_call(MP_QSTR_pocketgen_numeric, MP_QSTR_solve, n_args, args, kw_args);
+}
+static MP_DEFINE_CONST_FUN_OBJ_KW(pocketgen_solve_obj, 0, pocketgen_solve);
+
+static mp_obj_t pocketgen_integrate(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    return pocketgen_python_call(MP_QSTR_pocketgen_numeric, MP_QSTR_integrate, n_args, args, kw_args);
+}
+static MP_DEFINE_CONST_FUN_OBJ_KW(pocketgen_integrate_obj, 0, pocketgen_integrate);
+
+static mp_obj_t pocketgen_derivative(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    return pocketgen_python_call(MP_QSTR_pocketgen_numeric, MP_QSTR_derivative, n_args, args, kw_args);
+}
+static MP_DEFINE_CONST_FUN_OBJ_KW(pocketgen_derivative_obj, 0, pocketgen_derivative);
 
 static const mp_rom_map_elem_t pocketgen_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_pocketgen) },
@@ -282,6 +332,15 @@ static const mp_rom_map_elem_t pocketgen_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_graphics_line), MP_ROM_PTR(&pocketgen_graphics_line_obj) },
     { MP_ROM_QSTR(MP_QSTR_graphics_show), MP_ROM_PTR(&pocketgen_graphics_show_obj) },
     { MP_ROM_QSTR(MP_QSTR_plot), MP_ROM_PTR(&pocketgen_plot_obj) },
+    { MP_ROM_QSTR(MP_QSTR_plot_position), MP_ROM_PTR(&pocketgen_plot_position_obj) },
+    { MP_ROM_QSTR(MP_QSTR_scatter), MP_ROM_PTR(&pocketgen_scatter_obj) },
+    { MP_ROM_QSTR(MP_QSTR_linear_fit), MP_ROM_PTR(&pocketgen_linear_fit_obj) },
+    { MP_ROM_QSTR(MP_QSTR_hist), MP_ROM_PTR(&pocketgen_hist_obj) },
+    { MP_ROM_QSTR(MP_QSTR_bar), MP_ROM_PTR(&pocketgen_bar_obj) },
+    { MP_ROM_QSTR(MP_QSTR_pie), MP_ROM_PTR(&pocketgen_pie_obj) },
+    { MP_ROM_QSTR(MP_QSTR_solve), MP_ROM_PTR(&pocketgen_solve_obj) },
+    { MP_ROM_QSTR(MP_QSTR_integrate), MP_ROM_PTR(&pocketgen_integrate_obj) },
+    { MP_ROM_QSTR(MP_QSTR_derivative), MP_ROM_PTR(&pocketgen_derivative_obj) },
 };
 static MP_DEFINE_CONST_DICT(pocketgen_module_globals, pocketgen_module_globals_table);
 
