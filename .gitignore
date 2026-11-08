@@ -1,4 +1,8 @@
 /build/
+/modules/
+/.venv/
+/.west/
+/.sdk/
 /target/
 /components/pocketgen-terminal/target/
 /components/pocketgen-editor/target/

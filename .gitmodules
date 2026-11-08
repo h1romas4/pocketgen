@@ -1,3 +1,6 @@
 [submodule "components/micropython"]
 	path = components/micropython
 	url = https://github.com/micropython/micropython.git
+[submodule "zephyr"]
+	path = zephyr
+	url = https://github.com/zephyrproject-rtos/zephyr.git

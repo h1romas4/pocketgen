@@ -10,9 +10,9 @@
   },
   "remoteUser": "vscode",
   "remoteEnv": {
-    "PATH": "/workspaces/zephyrproject/.venv/bin:${containerEnv:PATH}",
-    "ZEPHYR_BASE": "/workspaces/zephyrproject/zephyr",
-    "ZEPHYR_SDK_INSTALL_DIR": "/workspaces/zephyrproject/.sdk"
+    "PATH": "${containerWorkspaceFolder}/.venv/bin:${containerEnv:PATH}",
+    "ZEPHYR_BASE": "${containerWorkspaceFolder}/zephyr",
+    "ZEPHYR_SDK_INSTALL_DIR": "${containerWorkspaceFolder}/.sdk"
   },
-  "postCreateCommand": "git submodule update --init && bash .devcontainer/setup.sh"
+  "postCreateCommand": "bash .devcontainer/setup.sh"
 }

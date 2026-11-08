@@ -18,14 +18,14 @@ python3 tests/mega_demo_test.py
 cargo test --manifest-path components/pocketgen-editor/Cargo.toml \
     --target-dir build/editor-tests --test syntax
 
-west build -b native_sim/native/64 . -d build/native_selftest -- \
+west build -b native_sim/native/64 . -d build/workspace/native_selftest -- \
     -DEXTRA_CONF_FILE=tests/selftest.conf \
     -DDTC_OVERLAY_FILE=boards/native_sim_native_64.overlay
 
 output="$(mktemp)"
 trap 'rm -f "$output"' EXIT
 status=0
-SDL_VIDEODRIVER=dummy timeout 20s build/native_selftest/zephyr/zephyr.exe >"$output" 2>&1 || status=$?
+SDL_VIDEODRIVER=dummy timeout 20s build/workspace/native_selftest/zephyr/zephyr.exe >"$output" 2>&1 || status=$?
 cat "$output"
 if [[ "$status" -ne 124 ]]; then
     printf 'Simulator exited unexpectedly: %s\n' "$status" >&2
@@ -68,8 +68,8 @@ if grep -Fq 'Autostarting' "$output"; then
     exit 1
 fi
 
-python3 tests/uart-integration.py build/native_selftest/zephyr/zephyr.exe
-python3 tests/native-launcher.py build/native_selftest/zephyr/zephyr.exe
+python3 tests/uart-integration.py build/workspace/native_selftest/zephyr/zephyr.exe
+python3 tests/native-launcher.py build/workspace/native_selftest/zephyr/zephyr.exe
 if command -v screen >/dev/null; then
-    python3 tests/uart-integration.py build/native_selftest/zephyr/zephyr.exe --screen
+    python3 tests/uart-integration.py build/workspace/native_selftest/zephyr/zephyr.exe --screen
 fi

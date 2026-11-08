@@ -15,7 +15,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_SIMULATOR = ROOT / "build/native_display/zephyr/zephyr.exe"
+DEFAULT_SIMULATOR = ROOT / "build/workspace/native_display/zephyr/zephyr.exe"
 PTY_PATTERN = re.compile(rb"uart connected to pseudotty: (/dev/pts/\d+)")
 READY = b"Editor input ready on virtual UART"
 QUIT = b"\x1d"
@@ -45,7 +45,7 @@ def run(simulator):
     if not simulator.is_file() or not os.access(simulator, os.X_OK):
         raise RuntimeError(
             f"simulator executable not found: {simulator}\n"
-            "Build it first: west build -b native_sim/native/64 . -d build/native_display"
+            "Build it first: west build -b native_sim/native/64 . -d build/workspace/native_display"
         )
 
     process = subprocess.Popen(

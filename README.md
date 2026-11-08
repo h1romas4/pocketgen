@@ -13,10 +13,10 @@ Zephyr-compatible platforms.
 
 ## Zephyr setup
 
-These steps use Ubuntu 26.04 on x86-64 and create a separate Zephyr workspace.
-Zephyr is pinned to commit
+These steps use Ubuntu 26.04 on x86-64. The project root is a west workspace;
+Zephyr is a Git submodule pinned to the tested commit
 [`072fd9442fe12568bcc3d3c61e4f390ed5cf35a3`](https://github.com/zephyrproject-rtos/zephyr/commit/072fd9442fe12568bcc3d3c61e4f390ed5cf35a3)
-(`4.5.99`, a development revision, not the 4.4 stable release).
+(`4.5.99`, a development revision without a release tag).
 
 Install the system dependencies and [Rust with rustup](https://rustup.rs/):
 
@@ -27,54 +27,46 @@ sudo apt install -y ca-certificates ccache cmake device-tree-compiler dfu-util \
     make ninja-build python3-dev python3-pip python3-tk python3-venv screen wget xz-utils
 ```
 
-Clone pocketgen, including its MicroPython submodule:
+Clone pocketgen, including its Zephyr and MicroPython submodules:
 
 ```sh
 git clone --recurse-submodules https://github.com/h1romas4/pocketgen.git
 cd pocketgen
-export POCKETGEN_DIR="$PWD"
 ```
 
-Create a **new, empty** Zephyr workspace. If this path already exists, choose a
-different unused path instead of modifying an existing workspace. The downloads
-may take some time.
+Initialize the project-local west workspace and install the required modules,
+Python packages and Rust targets. The downloads may take some time.
 
 ```sh
-export POCKETGEN_ZEPHYR_WORKSPACE="$HOME/.local/share/pocketgen/zephyrproject"
-mkdir -p "$POCKETGEN_ZEPHYR_WORKSPACE"
-python3 -m venv "$POCKETGEN_ZEPHYR_WORKSPACE/.venv"
-source "$POCKETGEN_ZEPHYR_WORKSPACE/.venv/bin/activate"
-python -m pip install --upgrade pip west
-
-git init "$POCKETGEN_ZEPHYR_WORKSPACE/zephyr"
-git -C "$POCKETGEN_ZEPHYR_WORKSPACE/zephyr" fetch --depth 1 \
-    https://github.com/zephyrproject-rtos/zephyr \
-    072fd9442fe12568bcc3d3c61e4f390ed5cf35a3
-git -C "$POCKETGEN_ZEPHYR_WORKSPACE/zephyr" checkout --detach FETCH_HEAD
-west init -l "$POCKETGEN_ZEPHYR_WORKSPACE/zephyr"
-cd "$POCKETGEN_ZEPHYR_WORKSPACE"
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip west
+west init -l zephyr
 west config manifest.project-filter +zephyr-lang-rust
-west update
-python -m pip install -r zephyr/scripts/requirements.txt
+west update --narrow --fetch-opt=--depth=1 zephyr-lang-rust hal_espressif
+pip install -r zephyr/scripts/requirements.txt
 west packages pip --install
-west zephyr-export
-
 rustup target add x86_64-unknown-none riscv32imafc-unknown-none-elf
-west sdk install --install-dir "$POCKETGEN_ZEPHYR_WORKSPACE/.sdk" \
-    --gnu-toolchains riscv64-zephyr-elf
-export ZEPHYR_BASE="$POCKETGEN_ZEPHYR_WORKSPACE/zephyr"
-export ZEPHYR_SDK_INSTALL_DIR="$POCKETGEN_ZEPHYR_WORKSPACE/.sdk"
-cd "$POCKETGEN_DIR"
+export ZEPHYR_BASE="$PWD/zephyr"
+export ZEPHYR_SDK_INSTALL_DIR="$PWD/.sdk"
+west sdk install --install-dir "$ZEPHYR_SDK_INSTALL_DIR" --gnu-toolchains riscv64-zephyr-elf
 ```
 
-In each new shell, select the same workspace before building:
+To reuse an existing compatible SDK, set `ZEPHYR_SDK_INSTALL_DIR` to its path
+instead and skip `west sdk install`.
+
+In each new shell, from the project root:
 
 ```sh
-export POCKETGEN_ZEPHYR_WORKSPACE="$HOME/.local/share/pocketgen/zephyrproject"
-source "$POCKETGEN_ZEPHYR_WORKSPACE/.venv/bin/activate"
-export ZEPHYR_BASE="$POCKETGEN_ZEPHYR_WORKSPACE/zephyr"
-export ZEPHYR_SDK_INSTALL_DIR="$POCKETGEN_ZEPHYR_WORKSPACE/.sdk"
+source .venv/bin/activate
+export ZEPHYR_BASE="$PWD/zephyr"
+export ZEPHYR_SDK_INSTALL_DIR="$PWD/.sdk"  # Or the compatible SDK used above.
 ```
+
+For an existing checkout, run `git submodule update --init --recursive` first.
+Skip `west init` if the project root is already a west workspace. The old
+external Zephyr workspace is no longer used; the build directories below avoid
+reusing its caches.
 
 GitHub Actions builds native-sim and ESP32-P4 and runs the native integration
 and component tests on Ubuntu 26.04.
@@ -84,7 +76,7 @@ and component tests on Ubuntu 26.04.
 Build and launch from the repository root:
 
 ```sh
-west build -b native_sim/native/64 . -d build/native_display
+west build -b native_sim/native/64 . -d build/workspace/native_display
 python3 scripts/native-sim.py
 ```
 
@@ -92,7 +84,7 @@ The launcher connects its terminal to the virtual UART automatically.
 Alternatively, run the simulator directly:
 
 ```sh
-build/native_display/zephyr/zephyr.exe
+build/workspace/native_display/zephyr/zephyr.exe
 ```
 
 In another terminal, connect `screen` to the `/dev/pts/N` device printed by
@@ -130,8 +122,8 @@ also connect its 5V and GND pins to the board. See Espressif's
 Connect the board's USB-UART port and build and flash from the repository root:
 
 ```sh
-west build -b esp32p4_function_ev_board/esp32p4/hpcore . -d build/esp32p4_pocketgen
-west flash -d build/esp32p4_pocketgen --esp-device /dev/ttyUSB0
+west build -b esp32p4_function_ev_board/esp32p4/hpcore . -d build/workspace/esp32p4_pocketgen
+west flash -d build/workspace/esp32p4_pocketgen --esp-device /dev/ttyUSB0
 ```
 
 Replace `/dev/ttyUSB0` with the board's serial device. After flashing, connect
