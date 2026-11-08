@@ -75,9 +75,9 @@ export ZEPHYR_SDK_INSTALL_DIR="$POCKETGEN_ZEPHYR_WORKSPACE/.sdk"
 GitHub Actions builds native-sim and ESP32-P4 and runs the native integration
 and component tests on Ubuntu 26.04.
 
-## Build
+## Native-sim build
 
-Build and run the native simulator from the repository root:
+Build and launch from the repository root:
 
 ```sh
 west build -b native_sim/native/64 . -d build/native_display
@@ -88,69 +88,7 @@ The SDL window is for display only. After it opens, focus the terminal running
 the launcher to enter keys; typing while the SDL window is focused does not
 send input to pocketgen.
 
-Press **Ctrl+R** to run the editor buffer, **Ctrl+C** to interrupt execution,
-and **Ctrl+]** to exit the simulator. The **F10** menu provides sample demos.
-
-Press **Ctrl+F** to search the editor. Type a case-sensitive query and press
-**Enter** or **Ctrl+N** to select the next match, or **Ctrl+P** for the
-previous match. Search wraps around the document. An existing single-line
-selection of up to 256 UTF-8 bytes pre-fills the query; the first search moves
-to the next or previous match. **Backspace** edits the query and **Esc** closes
-search, leaving the match selected. The query is limited to 256 UTF-8 bytes.
-
-### Math and graphics
-
-MicroPython supports double-precision floating-point numbers and the `math`
-module, including `sin`, `cos`, `sqrt`, and `pi`. Select **Demo → Sine Graph**
-or **Demo → Hat (Graphics)** and press **Ctrl+R** to run a pixel graphics
-example. The latter draws a Mexican hat surface as a benchmark; the original
-text-mode **Mexican Hat** demo remains available. The graphics version follows
-the classic cosine surface, projection, and height-based colors, connecting
-sampled points with lines projected at the output pane's pixel resolution.
-The benchmark prints its elapsed time to the retained terminal and shows the
-finished graphics; press **Ctrl+G** to see the timing. It measures elapsed
-wall-clock time from buffer initialization through the final `refresh()` call,
-including intermediate display updates and the VM's periodic 1 ms scheduling
-waits. It does not measure final physical display scanout. Loading a demo
-replaces the editor buffer; use **Ctrl+Z** to undo.
-
-The `pocketgen` module provides these right-pane graphics primitives:
-
-| Function | Description |
-| --- | --- |
-| `graphics_size()` | Return `(width, height)` in pixels. |
-| `graphics_clear(color=0)` | Allocate or clear the graphics buffer and show it. |
-| `graphics_pixel(x, y, color)` | Draw one pixel. |
-| `graphics_line(x0, y0, x1, y1, color)` | Draw a line including both endpoints. |
-| `graphics_show()` | Show the retained graphics in automatic mode. |
-| `refresh()` | Present pending changes during a running script. |
-| `ticks_ms()` | Return a monotonic millisecond counter. |
-| `ticks_diff(end, start)` | Return the wrap-safe difference between two ticks. |
-
-Coordinates start at the top-left and must be within the graphics area; colors
-are RGB565 integers from `0` to `65535`. Call `graphics_clear()` before drawing.
-Invalid coordinates or colors raise `ValueError`; allocation or unavailable
-graphics raises `OSError`. Drawing automatically switches to graphics mode.
-Printing or an exception switches to the retained text view; `graphics_show()`
-returns to the retained graphics in automatic mode. Starting another run
-clears the output and releases the previous graphics buffer. Graphics persist
-through editor redraws after a script ends. The graphics buffer uses two bytes
-per pixel and is allocated separately from the 128 KiB MicroPython heap; on
-ESP32-P4 it uses external PSRAM. NumPy-compatible arrays and a high-level plot
-API are not included yet.
-
-`ticks_ms()` wraps every 2^30 milliseconds. `ticks_diff()` returns a signed
-difference and is unambiguous when the interval is less than 2^29 milliseconds.
-These functions belong to `pocketgen`; the standard `time` module is not
-enabled in this minimal MicroPython configuration.
-
-Press **Ctrl+G** to toggle between the retained text and graphics, during or
-after a run. If no graphics have been created, the text view remains visible.
-Once toggled, the selected view remains visible even as the script prints or
-draws; a Python exception switches to text so its message is visible. Starting
-another run restores automatic switching between text and graphics.
-
-## ESP32-P4 setup
+## ESP32-P4 build
 
 ![pocketgen running the maze demo on the ESP32-P4 Function EV Board](docs/images/native-sim-cube.jpg)
 
@@ -184,24 +122,100 @@ to UART0 at 115200 baud:
 screen /dev/ttyUSB0 115200
 ```
 
-Type in this terminal while watching the LCD. The board configuration starts
-the 3D Cube demo automatically; **Ctrl+C** stops it and returns to the editor.
-Use **Ctrl+R** to run the buffer, **Ctrl+F** to search, and **F10** to open
-the Demo menu. Page Up moves toward the start of the document and Page Down
-moves toward the end. `screen`
-reserves Ctrl+A: to send Ctrl+A to the editor, press **Ctrl+A**, release it,
-then press **A**. To exit `screen` and release the serial port, press
-**Ctrl+A**, then **K**, then **Y**. Ctrl+A followed by D only detaches and
-leaves the port in use. `screen` may delay a standalone **Esc** while it
-distinguishes it from terminal key sequences.
+Type in this terminal while watching the LCD. To exit `screen` and release the
+serial port, press **Ctrl+A**, then **K**, then **Y**. **Ctrl+A**, then **D**
+only detaches and leaves the port in use.
 
-Set
+The board configuration starts the 3D Cube demo automatically. Set
 `CONFIG_POCKETGEN_AUTOSTART_CUBE=n` in the
 [board configuration](boards/esp32p4_function_ev_board_esp32p4_hpcore.conf)
-to start with the maze loaded and run it manually with Ctrl+R.
+to start with the maze loaded instead.
 
 ESP32-P4 revision v0.1 has been tested but is experimental: the board
 definition targets v1.3, and revision and ROM SHA-256 warnings appear at boot.
+
+## Controls
+
+| Key | Action |
+| --- | --- |
+| **F10** | Open the menu; select a demo, edit command, or Run. |
+| **Ctrl+R** | Run the editor buffer. |
+| **Ctrl+C** | Copy the selection, or interrupt a running script. |
+| **Ctrl+G** | Toggle the text and graphics output views. |
+| **Ctrl+F** | Open search. |
+| **Ctrl+Z / X / V** | Undo / cut / paste. |
+| **Ctrl+A** | Select all. |
+| **Home / End**, **Ctrl+Home / End** | Move to the start/end of the line or document. |
+| **Page Up / Down** | Move one page toward the start/end of the document. |
+| **Shift** + navigation | Extend the selection. |
+| **Ctrl+]** | Exit the native-sim launcher. |
+
+Search is case-sensitive and wraps around the document. In the search prompt,
+**Enter** or **Ctrl+N** selects the next match, **Ctrl+P** the previous one,
+**Backspace** edits the query, and **Esc** closes the prompt. A single-line
+selection of up to 256 UTF-8 bytes pre-fills the query; the first search moves
+to the next or previous match. Queries are limited to 256 UTF-8 bytes.
+
+`screen` reserves **Ctrl+A**: press **Ctrl+A**, release it, then press **A**
+to send it to the editor. It may delay a standalone **Esc** while distinguishing
+it from terminal key sequences.
+
+The text and graphics buffers are retained during a run. Printing selects text
+and drawing selects graphics automatically; **Ctrl+G** selects a view manually
+until the next run. Exceptions select text even in manual mode. Without a
+graphics buffer, **Ctrl+G** leaves text visible. Starting another run clears
+the text output and releases the previous graphics buffer.
+
+## Demos
+
+Select a demo from the **F10 → Demo** menu, then press **Ctrl+R** to run it.
+Loading replaces the editor buffer; **Ctrl+Z** undoes the replacement.
+
+| Demo | Output | Description |
+| --- | --- | --- |
+| [Maze](examples/terminal_demo.py) | Text | Generates and solves mazes. |
+| [Starfield](examples/starfield.py) | Text | Animates a starfield. |
+| [3D Cube](examples/cube.py) | Text | Animates a rotating cube. |
+| [Mexican Hat](examples/mexican_hat.py) | Text | Draws a Mexican hat surface. |
+| [Sine Graph](examples/sine_graph.py) | Graphics | Draws a sine curve. |
+| [Hat (Graphics)](examples/mexican_hat_graphics.py) | Graphics | Draws and times a Mexican hat surface. |
+
+**Hat (Graphics)** prints elapsed wall-clock time in the text view; use
+**Ctrl+G** to see it. The measurement includes buffer initialization, the final
+`refresh()` call, intermediate display updates, and the VM's periodic 1 ms
+scheduling waits, but not final physical scanout.
+
+## MicroPython reference
+
+MicroPython supports double-precision floats and the `math` module. Import
+the following functions from `pocketgen`:
+
+| Function | Description |
+| --- | --- |
+| `cls()` | Clear the text output and move the cursor to the top-left. |
+| `size()` | Return text output dimensions `(columns, rows)`. |
+| `locate(x, y)` | Move the text cursor to a zero-based column and row. |
+| `color(fg, bg=0)` | Set text foreground and background colors, each `0`–`15`. |
+| `graphics_size()` | Return graphics dimensions `(width, height)` in pixels. |
+| `graphics_clear(color=0)` | Allocate or clear the graphics buffer and show it. |
+| `graphics_pixel(x, y, color)` | Draw one pixel. |
+| `graphics_line(x0, y0, x1, y1, color)` | Draw a line including both endpoints. |
+| `graphics_show()` | Show the retained graphics in automatic mode. |
+| `refresh()` | Present pending changes during a running script. |
+| `sleep_ms(ms)` | Wait for non-negative milliseconds while processing events. |
+| `ticks_ms()` | Return a monotonic millisecond counter. |
+| `ticks_diff(end, start)` | Return the wrap-safe difference between two ticks. |
+
+Text and graphics coordinates start at the top-left and must be in bounds.
+Graphics colors are RGB565 integers from `0` to `65535`; call
+`graphics_clear()` before drawing. Invalid coordinates or colors raise
+`ValueError`; unavailable graphics or allocation failures raise `OSError`.
+The retained graphics buffer uses two bytes per pixel, separately from the
+128 KiB MicroPython heap; ESP32-P4 uses external PSRAM.
+
+`ticks_ms()` wraps every 2^30 milliseconds; `ticks_diff()` is unambiguous for
+intervals shorter than 2^29 milliseconds. The standard `time` module is not
+enabled.
 
 ## License
 
