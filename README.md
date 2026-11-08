@@ -44,8 +44,8 @@ pip install --upgrade pip west
 west init -l zephyr
 west config manifest.project-filter +zephyr-lang-rust
 west update --narrow --fetch-opt=--depth=1 zephyr-lang-rust hal_espressif
-pip install -r zephyr/scripts/requirements.txt
-west packages pip --install
+pip install -r zephyr/scripts/requirements-base.txt \
+    -r modules/hal/espressif/zephyr/requirements.txt
 rustup target add x86_64-unknown-none riscv32imafc-unknown-none-elf
 export ZEPHYR_BASE="$PWD/zephyr"
 export ZEPHYR_SDK_INSTALL_DIR="$PWD/.sdk"

@@ -27,8 +27,8 @@ case ",$project_filter," in
     *) west config manifest.project-filter "${project_filter:+$project_filter,}+zephyr-lang-rust" ;;
 esac
 west update --narrow --fetch-opt=--depth=1 zephyr-lang-rust hal_espressif
-"$venv/bin/python" -m pip install -r zephyr/scripts/requirements.txt
-west packages pip --install
+"$venv/bin/python" -m pip install -r zephyr/scripts/requirements-base.txt \
+    -r modules/hal/espressif/zephyr/requirements.txt
 
 case "$(uname -m)" in
     x86_64) rustup target add x86_64-unknown-none ;;
