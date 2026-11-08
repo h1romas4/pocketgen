@@ -130,10 +130,11 @@ Type in this terminal while watching the LCD. To exit `screen` and release the
 serial port, press **Ctrl+A**, then **K**, then **Y**. **Ctrl+A**, then **D**
 only detaches and leaves the port in use.
 
-The board configuration starts the 3D Cube demo automatically. Set
-`CONFIG_POCKETGEN_AUTOSTART_CUBE=n` in the
-[board configuration](boards/esp32p4_function_ev_board_esp32p4_hpcore.conf)
-to start with the maze loaded instead.
+The board configuration starts the Mega Demo automatically. In the
+[board configuration](boards/esp32p4_function_ev_board_esp32p4_hpcore.conf),
+replace `CONFIG_POCKETGEN_AUTOSTART_MEGA=y` with
+`CONFIG_POCKETGEN_AUTOSTART_NONE=y` to start with the maze loaded instead, or
+`CONFIG_POCKETGEN_AUTOSTART_CUBE=y` for the 3D Cube demo.
 
 ESP32-P4 revision v0.1 has been tested but is experimental: the board
 definition targets v1.3, and revision and ROM SHA-256 warnings appear at boot.
@@ -192,11 +193,16 @@ Loading replaces the editor buffer; **Ctrl+Z** undoes the replacement.
 | [Chart Pie](examples/chart_pie.py) | Graphics | Shows spending by category. |
 | [Numeric RC](examples/numeric_rc.py) | Graphics + text | Visualizes a discharge, half-voltage time, integral, and tangent. |
 | [Snake](examples/snake.py) | Graphics | Collect food with arrow keys or WASD; quit with Q or Esc. |
+| [Mega Demo](examples/mega_demo.py) | Graphics | Cycles through five animated scenes; Space skips, Q or Esc quits. |
 
 **Hat (Graphics)** prints elapsed wall-clock time in the text view; use
 **Ctrl+G** to see it. The measurement includes buffer initialization, the final
 `refresh()` call, intermediate display updates, and the VM's periodic 1 ms
 scheduling waits, but not final physical scanout.
+
+**Mega Demo** loops through five scenes, changing roughly every eight seconds.
+Space skips a scene; Q or Esc exits. It requires a graphics area of at least
+240 × 220 pixels.
 
 ### Native-sim screenshots
 
@@ -223,6 +229,10 @@ scheduling waits, but not final physical scanout.
 **Snake**
 
 ![Snake game running in native-sim](docs/images/native-sim-snake.png)
+
+**Mega Demo**
+
+![Mega Demo 3D cube in native-sim](docs/images/native-sim-mega-demo.png)
 
 ## MicroPython reference
 

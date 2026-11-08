@@ -14,10 +14,21 @@ config POCKETGEN_HIGHLIGHT_BENCHMARK
 	bool "Benchmark editor viewport highlighting at startup"
 	default n
 
-config POCKETGEN_AUTOSTART_CUBE
-	bool "Load and run the 3D Cube demo at startup"
-	default n
+choice POCKETGEN_AUTOSTART
+	prompt "Demo to run at startup"
+	default POCKETGEN_AUTOSTART_NONE
 	help
-	  Start the 3D Cube demo automatically after initializing the display
-	  and UART. Ctrl+C interrupts the demo and returns to the editor.
-	  Startup integration tests retain their normal maze behavior.
+	  Load and run a demo after initializing the display and UART.
+	  Ctrl+C interrupts the demo and returns to the editor. Startup
+	  integration tests retain their normal maze behavior.
+
+config POCKETGEN_AUTOSTART_NONE
+	bool "No automatic execution"
+
+config POCKETGEN_AUTOSTART_CUBE
+	bool "3D Cube"
+
+config POCKETGEN_AUTOSTART_MEGA
+	bool "Mega Demo"
+
+endchoice

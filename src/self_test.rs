@@ -87,6 +87,25 @@ pub(crate) fn test_graphics(
             return false;
         }
     }
+    let mega_source = include_str!("../examples/mega_demo.py").replace(
+        "\nrun_demo()\n",
+        "\nrun_demo(cycles=1, delay=0, frames_per_scene=2)\n",
+    );
+    if run_graphics_source(
+        &mega_source, renderer, parser, pane, pixels, width, height, bar_height,
+    ) != 0
+    {
+        log::error!("Mega demo failed: {}", parser.screen().contents());
+        return false;
+    }
+    pixels.fill(0);
+    pane.render(parser, renderer, pixels, width, width / 2, bar_height);
+    for color in [0xf81f, 0xfd20, 0x07e0, 0x07ff] {
+        if !pixels.contains(&color) {
+            log::error!("Mega demo is missing color {:#06x}", color);
+            return false;
+        }
+    }
     let plot_source = concat!(
         "from pocketgen import plot, graphics_show\n",
         "plot((lambda x: x, lambda x: -x), xmin=-2, xmax=2, ymin=-2, ymax=2,\n",
@@ -729,7 +748,7 @@ pub(crate) fn test_selection_and_menu(size: Size) -> bool {
     menu.handle(Key::Menu);
     menu.handle(Key::Up);
     viewport.render(&editor, &menu, &mut parser, 4, renderer.cols());
-    if !parser.screen().contents().contains("Snake")
+    if !parser.screen().contents().contains("Mega Demo")
         || !parser
             .screen()
             .cell(3, 0)
@@ -889,15 +908,16 @@ pub(crate) fn test_demo_loading(size: Size, footer_size: Size) -> bool {
         return false;
     }
     for (up_count, source) in [
-        (9, include_str!("../examples/plot_trig.py")),
-        (8, include_str!("../examples/plot_projectile.py")),
-        (7, include_str!("../examples/plot_growth.py")),
-        (6, include_str!("../examples/chart_scatter.py")),
-        (5, include_str!("../examples/chart_histogram.py")),
-        (4, include_str!("../examples/chart_bar.py")),
-        (3, include_str!("../examples/chart_pie.py")),
-        (2, include_str!("../examples/numeric_rc.py")),
-        (1, include_str!("../examples/snake.py")),
+        (10, include_str!("../examples/plot_trig.py")),
+        (9, include_str!("../examples/plot_projectile.py")),
+        (8, include_str!("../examples/plot_growth.py")),
+        (7, include_str!("../examples/chart_scatter.py")),
+        (6, include_str!("../examples/chart_histogram.py")),
+        (5, include_str!("../examples/chart_bar.py")),
+        (4, include_str!("../examples/chart_pie.py")),
+        (3, include_str!("../examples/numeric_rc.py")),
+        (2, include_str!("../examples/snake.py")),
+        (1, include_str!("../examples/mega_demo.py")),
     ] {
         for key in core::iter::once(Key::Menu)
             .chain(core::iter::repeat_n(Key::Up, up_count))

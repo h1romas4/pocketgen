@@ -1,0 +1,68 @@
+import os
+import re
+import select
+import subprocess
+import sys
+import termios
+import time
+import tty
+
+
+env = dict(os.environ, SDL_VIDEODRIVER="dummy")
+process = subprocess.Popen(
+    [sys.argv[1]], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env
+)
+output = bytearray()
+serial_fd = None
+
+
+def wait_for(predicate, timeout=15):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate(output):
+            return
+        ready, _, _ = select.select([process.stdout], [], [], 0.1)
+        if ready:
+            data = os.read(process.stdout.fileno(), 4096)
+            if not data:
+                raise RuntimeError("simulator exited unexpectedly")
+            output.extend(data)
+    raise RuntimeError("timed out waiting for simulator")
+
+
+try:
+    wait_for(lambda data: re.search(rb"uart connected to pseudotty: (/dev/pts/\d+)", data))
+    device = re.search(rb"uart connected to pseudotty: (/dev/pts/\d+)", output).group(1).decode()
+    serial_fd = os.open(device, os.O_RDWR | os.O_NOCTTY)
+    tty.setraw(serial_fd, termios.TCSANOW)
+    wait_for(lambda data: b"Autostarting Mega Demo" in data)
+    wait_for(lambda data: b"MicroPython execution started" in data)
+    time.sleep(1)
+    os.write(serial_fd, b"q")
+    wait_for(lambda data: b"MicroPython execution completed" in data)
+
+    start = len(output)
+    os.write(serial_fd, b"\x12")
+    wait_for(lambda data: b"MicroPython execution started" in data[start:])
+    time.sleep(0.5)
+    os.write(serial_fd, b"\x03")
+    wait_for(lambda data: b"MicroPython execution interrupted" in data[start:])
+
+    start = len(output)
+    os.write(serial_fd, b"\x1b[21~\x1b[C\x1b[A\r\x7fprint('recovered')\r\x12")
+    wait_for(lambda data: b"MicroPython execution completed" in data[start:])
+    if b"<err>" in output or b"MicroPython script raised an exception" in output:
+        raise RuntimeError("simulator reported an error")
+    print("Mega autostart, Q, Ctrl+C, and editor recovery passed")
+except Exception:
+    sys.stderr.write(output.decode(errors="replace"))
+    raise
+finally:
+    if serial_fd is not None:
+        os.close(serial_fd)
+    process.terminate()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()

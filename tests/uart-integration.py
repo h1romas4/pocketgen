@@ -204,9 +204,9 @@ try:
     wait_for(b"Output view: graphics", start)
     print(f"Graphics Mexican hat demo menu, drawing, and view toggle passed ({mode})")
 
-    for name, up_count in ((b"plot trig", 9), (b"plot projectile", 8), (b"plot growth", 7),
-                           (b"chart scatter", 6), (b"chart histogram", 5),
-                           (b"chart bar", 4), (b"chart pie", 3), (b"numeric RC", 2)):
+    for name, up_count in ((b"plot trig", 10), (b"plot projectile", 9), (b"plot growth", 8),
+                           (b"chart scatter", 7), (b"chart histogram", 6),
+                           (b"chart bar", 5), (b"chart pie", 4), (b"numeric RC", 3)):
         start = len(output)
         os.write(serial_fd, b"\x1b[21~" + b"\x1b[A" * up_count + b"\r")
         wait_for(b"Loaded " + name + b" demo", start)
@@ -221,7 +221,7 @@ try:
     print(f"Plot, chart and numeric demo menu, execution, and view toggle passed ({mode})")
 
     start = len(output)
-    os.write(serial_fd, b"\x1b[21~\x1b[A\r")
+    os.write(serial_fd, b"\x1b[21~\x1b[A\x1b[A\r")
     wait_for(b"Loaded snake demo", start)
     os.write(serial_fd, b"\x12")
     wait_for(b"Live output frame presented", start)
@@ -237,6 +237,23 @@ try:
     os.write(serial_fd, b"\x03")
     wait_for(b"MicroPython execution interrupted", start)
     print(f"Snake demo input, exit and interruption passed ({mode})")
+
+    start = len(output)
+    os.write(serial_fd, b"\x1b[21~\x1b[A\r")
+    wait_for(b"Loaded mega demo", start)
+    os.write(serial_fd, b"\x12")
+    wait_for(b"Live output frame presented", start)
+    time.sleep(0.5)
+    os.write(serial_fd, b"    ")
+    time.sleep(1)
+    os.write(serial_fd, b"q")
+    wait_for(b"MicroPython execution completed", start, timeout=30)
+    start = len(output)
+    os.write(serial_fd, b"\x12")
+    wait_for(b"Live output frame presented", start)
+    os.write(serial_fd, b"\x03")
+    wait_for(b"MicroPython execution interrupted", start, timeout=20)
+    print(f"Mega demo input, exit and interruption passed ({mode})")
 
     start = len(output)
     replace_and_run(

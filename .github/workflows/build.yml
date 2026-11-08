@@ -90,6 +90,10 @@ jobs:
             -DEXTRA_CONF_FILE=tests/autostart-cube.conf \
             -DDTC_OVERLAY_FILE=boards/native_sim_native_64.overlay
           python3 tests/autostart-cube.py build/native_cube_autostart/zephyr/zephyr.exe
+          west build -b native_sim/native/64 . -d build/native_mega_autostart -- \
+            -DEXTRA_CONF_FILE=tests/autostart-mega.conf \
+            -DDTC_OVERLAY_FILE=boards/native_sim_native_64.overlay
+          python3 tests/autostart-mega.py build/native_mega_autostart/zephyr/zephyr.exe
 
       - name: Build ESP32-P4 firmware
         if: matrix.target == 'esp32p4'
@@ -98,5 +102,5 @@ jobs:
       - name: Free build space for caches
         run: |
           rm -rf build/editor-tests build/terminal-tests \
-            build/native_selftest build/native_display build/native_cube_autostart \
+            build/native_selftest build/native_display build/native_cube_autostart build/native_mega_autostart \
             build/esp32p4_pocketgen

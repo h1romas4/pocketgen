@@ -40,6 +40,10 @@ int pocketgen_autostart_cube_enabled(void) {
     return IS_ENABLED(CONFIG_POCKETGEN_AUTOSTART_CUBE);
 }
 
+int pocketgen_autostart_mega_enabled(void) {
+    return IS_ENABLED(CONFIG_POCKETGEN_AUTOSTART_MEGA);
+}
+
 uint32_t pocketgen_benchmark_ticks(void) {
 #if defined(CONFIG_ARCH_POSIX)
     return (uint32_t)native_rtc_gettime_us(RTC_CLOCK_PSEUDOHOSTREALTIME);

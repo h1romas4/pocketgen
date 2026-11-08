@@ -48,6 +48,7 @@ extern "C" {
     fn pocketgen_input_poll(byte: *mut u8) -> i32;
     fn pocketgen_input_wait();
     fn pocketgen_autostart_cube_enabled() -> i32;
+    fn pocketgen_autostart_mega_enabled() -> i32;
 }
 
 /// Routes a key through the menu, editor, or Python execution path.
@@ -140,6 +141,11 @@ fn apply_input(
         Key::DemoSnake => {
             editor.replace_all(include_str!("../examples/snake.py"));
             info!("Loaded snake demo");
+            return true;
+        }
+        Key::DemoMega => {
+            editor.replace_all(include_str!("../examples/mega_demo.py"));
+            info!("Loaded mega demo");
             return true;
         }
         _ => {}
@@ -420,12 +426,17 @@ extern "C" fn rust_main() {
     );
     draw_shortcuts(&mut footer, None);
 
-    let autostart_cube = self_test == 0 && unsafe { pocketgen_autostart_cube_enabled() } != 0;
-    let initial_source = if autostart_cube {
-        include_str!("../examples/cube.py")
+    let autostart = if self_test != 0 {
+        None
+    } else if unsafe { pocketgen_autostart_mega_enabled() } != 0 {
+        Some((include_str!("../examples/mega_demo.py"), "Mega Demo"))
+    } else if unsafe { pocketgen_autostart_cube_enabled() } != 0 {
+        Some((include_str!("../examples/cube.py"), "3D Cube demo"))
     } else {
-        include_str!("../examples/terminal_demo.py")
+        None
     };
+    let initial_source =
+        autostart.map_or(include_str!("../examples/terminal_demo.py"), |(source, _)| source);
     let mut editor = Editor::new(initial_source);
     let mut menu = Menu::default();
     let mut search = Search::default();
@@ -653,8 +664,8 @@ extern "C" fn rust_main() {
     info!("Rendered two terminals on a {}x{} display", width, height);
 
     info!("Editor input ready on virtual UART");
-    if autostart_cube {
-        info!("Autostarting 3D Cube demo");
+    if let Some((_, name)) = autostart {
+        info!("Autostarting {}", name);
         if !process_key(
             Key::Run,
             &mut menu,

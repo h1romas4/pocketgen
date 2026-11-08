@@ -14,6 +14,7 @@ python3 tests/chart_test.py
 python3 tests/numeric_test.py
 python3 tests/tile_test.py
 python3 tests/snake_demo_test.py
+python3 tests/mega_demo_test.py
 cargo test --manifest-path components/pocketgen-editor/Cargo.toml \
     --target-dir build/editor-tests --test syntax
 
@@ -60,6 +61,10 @@ for message in \
 done
 if grep -Fq '<err>' "$output"; then
     printf 'Simulator reported an error\n' >&2
+    exit 1
+fi
+if grep -Fq 'Autostarting' "$output"; then
+    printf 'A demo autostarted during self-test mode\n' >&2
     exit 1
 fi
 
