@@ -1,0 +1,37 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build native-sim",
+			"type": "shell",
+			"command": "west build -b native_sim/native/64 . -d build/workspace/native_display",
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build ESP32-P4",
+			"type": "shell",
+			"command": "west build -b esp32p4_function_ev_board/esp32p4/hpcore . -d build/workspace/esp32p4_pocketgen",
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Flash ESP32-P4",
+			"type": "shell",
+			"command": "west flash -d build/workspace/esp32p4_pocketgen --esp-device \"${input:esp32SerialPort}\"",
+			"problemMatcher": []
+		}
+	],
+	"inputs": [
+		{
+			"id": "esp32SerialPort",
+			"type": "promptString",
+			"description": "ESP32-P4 serial device",
+			"default": "/dev/ttyUSB0"
+		}
+	]
+}

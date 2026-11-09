@@ -1,4 +1,9 @@
 {
+  "terminal.integrated.env.linux": {
+    "ZEPHYR_BASE": "${workspaceFolder}/zephyr",
+    "ZEPHYR_SDK_INSTALL_DIR": "${workspaceFolder}/.sdk",
+    "PATH": "${workspaceFolder}/.venv/bin:${env:PATH}"
+  },
   "rust-analyzer.cargo.allTargets": false,
   "rust-analyzer.cargo.extraArgs": [
     "--config",
