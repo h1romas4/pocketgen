@@ -19,7 +19,6 @@ jobs:
         target: [native, esp32p4]
     env:
       ZEPHYR_BASE: ${{ github.workspace }}/zephyr
-      ZEPHYR_SDK_INSTALL_DIR: ${{ github.workspace }}/.sdk
       # Zephyr's bindgen 0.70.1 generates incorrect layouts with Clang 22.
       LIBCLANG_PATH: /usr/lib/llvm-21/lib
     steps:
@@ -70,15 +69,18 @@ jobs:
           sdk_version=$(tr -d '[:space:]' < zephyr/SDK_VERSION)
           minimal="zephyr-sdk-${sdk_version}_linux-x86_64_minimal.tar.xz"
           toolchain="toolchain_gnu_linux-x86_64_riscv64-zephyr-elf.tar.xz"
-          mkdir -p "$RUNNER_TEMP/sdk-download" "$ZEPHYR_SDK_INSTALL_DIR/gnu"
+          mkdir -p "$RUNNER_TEMP/sdk-download" "$GITHUB_WORKSPACE/.sdk/gnu"
           cd "$RUNNER_TEMP/sdk-download"
           gh release download "v${sdk_version}" --repo zephyrproject-rtos/sdk-ng \
             --pattern sha256.sum --pattern "$minimal" --pattern "$toolchain"
           grep -F "  $minimal" sha256.sum | sha256sum --check --strict
           grep -F "  $toolchain" sha256.sum | sha256sum --check --strict
-          tar -xJf "$minimal" --strip-components=1 -C "$ZEPHYR_SDK_INSTALL_DIR"
-          tar -xJf "$toolchain" -C "$ZEPHYR_SDK_INSTALL_DIR/gnu"
-          "$ZEPHYR_SDK_INSTALL_DIR/setup.sh" -h
+          tar -xJf "$minimal" --strip-components=1 -C "$GITHUB_WORKSPACE/.sdk"
+          tar -xJf "$toolchain" -C "$GITHUB_WORKSPACE/.sdk/gnu"
+          "$GITHUB_WORKSPACE/.sdk/setup.sh" -h
+
+      - name: Register Zephyr SDK
+        run: .sdk/setup.sh -c
 
       - name: Set up Zephyr, SDK, and Rust targets
         env:

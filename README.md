@@ -51,36 +51,19 @@ pip install -r zephyr/scripts/requirements-base.txt \
     -r modules/hal/espressif/zephyr/requirements.txt
 rustup target add x86_64-unknown-none riscv32imafc-unknown-none-elf
 export ZEPHYR_BASE="$PWD/zephyr"
-export ZEPHYR_SDK_INSTALL_DIR="$PWD/.sdk"
-west sdk install --install-dir "$ZEPHYR_SDK_INSTALL_DIR" --gnu-toolchains riscv64-zephyr-elf
+west sdk install --gnu-toolchains riscv64-zephyr-elf
 ```
 
-`west sdk install` may reuse an existing SDK of the same version instead of
-installing it at the requested path. Check its output or run `west sdk list`
-and set `ZEPHYR_SDK_INSTALL_DIR` to the actual SDK path. To reuse an existing
-compatible SDK, set it to that path and skip `west sdk install`.
+`west sdk install` reuses a compatible installed SDK when available. Run
+`west sdk list` to see its location and installed toolchains.
 
 In each new shell, from the project root:
 
 ```sh
 source .venv/bin/activate
 export ZEPHYR_BASE="$PWD/zephyr"
-export ZEPHYR_SDK_INSTALL_DIR="$PWD/.sdk"  # Or the compatible SDK used above.
 ```
 
-If a previous build cached a different SDK path, update its CMake configuration
-when rebuilding:
-
-```sh
-west build -b native_sim/native/64 . -d build/workspace/native_display -- \
-    -UZephyr-sdk_DIR -UDTC -UBOSSAC -UOPENOCD \
-    -DZEPHYR_SDK_INSTALL_DIR="$ZEPHYR_SDK_INSTALL_DIR"
-```
-
-For an existing checkout, run the submodule commands above and skip `west init`
-if the project root is already a west workspace. The old external Zephyr
-workspace is no longer used; the build directories below avoid reusing its
-caches.
 
 GitHub Actions builds native-sim and ESP32-P4 and runs the native integration
 and component tests on Ubuntu 26.04.
@@ -162,12 +145,11 @@ definition targets v1.3, and revision and ROM SHA-256 warnings appear at boot.
 
 ## VS Code
 
-- **Terminal:** New integrated terminals on Linux set `ZEPHYR_BASE` and
-  `ZEPHYR_SDK_INSTALL_DIR` to the project-local paths and add `.venv/bin` to
-  `PATH`. Shell startup files can override these settings; if they do, run the
-  exports in [Zephyr setup](#zephyr-setup) after the shell starts. Set
-  `ZEPHYR_SDK_INSTALL_DIR` separately when using an SDK elsewhere, and restart
-  existing terminals after changing VS Code settings.
+- **Terminal:** New integrated terminals on Linux set `ZEPHYR_BASE` to the
+  project-local Zephyr and add `.venv/bin` to `PATH`. Shell startup files can
+  override these settings; if they do, run the exports in
+  [Zephyr setup](#zephyr-setup) after the shell starts. Restart existing
+  terminals after changing VS Code settings.
 - **Tasks:** Use **Tasks: Run Build Task** for **Build native-sim** or
   **Build ESP32-P4**. **Tasks: Run Task** also offers **Flash ESP32-P4**, which
   prompts for the serial device. Tasks require `west` on `PATH` and the Zephyr

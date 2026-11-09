@@ -11,8 +11,7 @@
   "remoteUser": "vscode",
   "remoteEnv": {
     "PATH": "${containerWorkspaceFolder}/.venv/bin:${containerEnv:PATH}",
-    "ZEPHYR_BASE": "${containerWorkspaceFolder}/zephyr",
-    "ZEPHYR_SDK_INSTALL_DIR": "${containerWorkspaceFolder}/.sdk"
+    "ZEPHYR_BASE": "${containerWorkspaceFolder}/zephyr"
   },
   "postCreateCommand": "bash .devcontainer/setup.sh"
 }
