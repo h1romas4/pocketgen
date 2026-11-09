@@ -55,8 +55,10 @@ export ZEPHYR_SDK_INSTALL_DIR="$PWD/.sdk"
 west sdk install --install-dir "$ZEPHYR_SDK_INSTALL_DIR" --gnu-toolchains riscv64-zephyr-elf
 ```
 
-To reuse an existing compatible SDK, set `ZEPHYR_SDK_INSTALL_DIR` to its path
-instead and skip `west sdk install`.
+`west sdk install` may reuse an existing SDK of the same version instead of
+installing it at the requested path. Check its output or run `west sdk list`
+and set `ZEPHYR_SDK_INSTALL_DIR` to the actual SDK path. To reuse an existing
+compatible SDK, set it to that path and skip `west sdk install`.
 
 In each new shell, from the project root:
 
@@ -64,6 +66,15 @@ In each new shell, from the project root:
 source .venv/bin/activate
 export ZEPHYR_BASE="$PWD/zephyr"
 export ZEPHYR_SDK_INSTALL_DIR="$PWD/.sdk"  # Or the compatible SDK used above.
+```
+
+If a previous build cached a different SDK path, update its CMake configuration
+when rebuilding:
+
+```sh
+west build -b native_sim/native/64 . -d build/workspace/native_display -- \
+    -UZephyr-sdk_DIR -UDTC -UBOSSAC -UOPENOCD \
+    -DZEPHYR_SDK_INSTALL_DIR="$ZEPHYR_SDK_INSTALL_DIR"
 ```
 
 For an existing checkout, run the submodule commands above and skip `west init`

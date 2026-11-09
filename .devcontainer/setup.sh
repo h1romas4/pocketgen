@@ -40,3 +40,8 @@ rustup target add riscv32imafc-unknown-none-elf
 if [[ ! -x "$sdk/gnu/riscv64-zephyr-elf/bin/riscv64-zephyr-elf-gcc" ]]; then
     west sdk install --install-dir "$sdk" --gnu-toolchains riscv64-zephyr-elf
 fi
+
+if [[ ! -f "$sdk/cmake/Zephyr-sdkConfig.cmake" || ! -x "$sdk/gnu/riscv64-zephyr-elf/bin/riscv64-zephyr-elf-gcc" ]]; then
+    printf 'Zephyr SDK not found at %s. Run "west sdk list" and set ZEPHYR_SDK_INSTALL_DIR to the installed SDK path, then rerun setup.\n' "$sdk" >&2
+    exit 1
+fi
