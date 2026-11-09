@@ -41,6 +41,7 @@ some time.
 ```sh
 git submodule update --init
 git -C components/micropython submodule update --init lib/micropython-lib
+export ZEPHYR_BASE="$PWD/zephyr"
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip west
@@ -50,7 +51,6 @@ west update --narrow --fetch-opt=--depth=1 zephyr-lang-rust hal_espressif
 pip install -r zephyr/scripts/requirements-base.txt \
     -r modules/hal/espressif/zephyr/requirements.txt
 rustup target add x86_64-unknown-none riscv32imafc-unknown-none-elf
-export ZEPHYR_BASE="$PWD/zephyr"
 west sdk install --gnu-toolchains riscv64-zephyr-elf
 ```
 
